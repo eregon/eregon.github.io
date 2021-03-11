@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Research &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="http://eregon.me/blog/research/">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Research" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A blog about Ruby, Performance and Concurrency" />
+<meta property="og:description" content="A blog about Ruby, Performance and Concurrency" />
+<link rel="canonical" href="http://eregon.me/blog/research/" />
+<meta property="og:url" content="http://eregon.me/blog/research/" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@eregontp" />
+<meta name="twitter:creator" content="@eregontp" />
+<script type="application/ld+json">
+{"description":"A blog about Ruby, Performance and Concurrency","@type":"WebPage","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"http://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"url":"http://eregon.me/blog/research/","author":{"@type":"Person","name":"Benoit Daloze"},"headline":"Research","@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="http://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-88130916-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+        <a href="/blog/">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      
+<h1 id="research">Research</h1>
+
+<h2 id="research-interests">Research Interests</h2>
+
+<ul>
+  <li><strong>Concurrency in dynamically-typed programming languages</strong></li>
+  <li>Optimizations for dynamically-typed languages</li>
+  <li>Virtual Machines</li>
+</ul>
+
+<h2 id="projects">Projects</h2>
+
+<ul>
+  <li><a href="https://github.com/oracle/truffleruby">TruffleRuby</a>, a high performance implementation of the Ruby programming language on top of Truffle and Graal.</li>
+  <li><a href="https://github.com/eregon/mozart-graal">Mozart-Graal</a>, an implementation of the Oz programming language on top of Truffle and Graal.</li>
+</ul>
+
+<h2 id="phd-thesis">PhD Thesis</h2>
+
+<ul>
+  <li>B. Daloze.
+<a href="/blog/assets/research/thesis-thread-safe-data-representations-in-dynamic-languages.pdf"><em>Thread-Safe and Efficient Data Representations in Dynamically-Typed Languages</em></a>.
+Johannes Kepler University Linz, Austria, 2019.
+<a href="/blog/assets/research/thesis-slides.pdf">Slides</a>.
+    <blockquote>
+      <p>An approach to shared-memory parallelism to make objects and built-in collections of dynamically-typed languages thread-safe, efficient and scalable.</p>
+    </blockquote>
+  </li>
+</ul>
+
+<h2 id="publications">Publications</h2>
+
+<p>Most of these papers are also listed in the <a href="https://rubybib.org/">Ruby Bibliography</a>.</p>
+
+<ul>
+  <li>B. Daloze, A. Tal, S. Marr, H. Mössenböck, E. Petrank.
+<a href="/blog/assets/research/thread-safe-collections.pdf"><em>Parallelization of Dynamic Languages: Synchronizing Built-in Collections</em></a>.
+In Proceedings of the 2018 Conference on Object-Oriented Programming, Systems, Languages, and Applications (OOPSLA), Boston, United States, November 7-9, 2018.
+<a href="/blog/assets/research/thread-safe-collections-supplement.pdf">Supplementary Material</a>.
+    <blockquote>
+      <p>A method for making built-in collections thread-safe by default with no single-threaded overhead and allowing scalability.</p>
+    </blockquote>
+  </li>
+  <li>K. Menard, C. Seaton, B. Daloze.
+<a href="/blog/assets/research/specializing-ropes-for-ruby.pdf"><em>Specializing Ropes for Ruby</em></a>.
+In Proceedings of the 15th Conference on Managed Languages &amp; Runtimes (ManLang), Linz, Austria, September 12-13, 2018.
+    <blockquote>
+      <p>Using the rope data structure for the mutable Strings of the Ruby programming language, adding encoding information and new rope operations.</p>
+    </blockquote>
+  </li>
+  <li>S. Marr, B. Daloze.
+<a href="/blog/assets/research/few-versatile-vs-many-specialized-collections.pdf"><em>Few Versatile vs. Many Specialized Collections - How to design a collection library for exploratory programming?</em></a>
+In Proceedings of the 4th Edition of the Programming Experience Workshop (PX/18), Nice, France, April 9-12, 2018.
+    <blockquote>
+      <p>A study of the design of collection libraries in 14 languages and how it influences programmer productivity.</p>
+    </blockquote>
+  </li>
+  <li>B. Daloze, S. Marr, D. Bonetta, H. Mössenböck.
+<a href="/blog/assets/research/thread-safe-objects.pdf"><em>Efficient and Thread-Safe Objects for Dynamically-Typed Languages</em></a>.
+In Proceedings of the 2016 Conference on Object-Oriented Programming, Systems, Languages, and Applications (OOPSLA), Amsterdam, Netherlands, November 2-4, 2016.
+    <blockquote>
+      <p>A thread-safe object model for objects to which fields can be added or removed dynamically (such as in JavaScript, Ruby, Python, etc).</p>
+    </blockquote>
+  </li>
+  <li>S. Marr, B. Daloze, H. Mössenböck.
+<a href="/blog/assets/research/cross-language-compiler-benchmarking.pdf"><em>Cross-Language Compiler Benchmarking - Are We Fast Yet?</em></a>
+In Proceedings of the 12th Dynamic Languages Symposium (DLS), Amsterdam, Netherlands, November 1, 2016.
+    <blockquote>
+      <p>A benchmark suite composed of 14 benchmarks, in 6 managed programming languages to compare compiler effectiveness.</p>
+    </blockquote>
+  </li>
+  <li>B. Daloze, C. Seaton, D. Bonetta, H. Mössenböck.
+<a href="/blog/assets/research/guest-language-safepoints.pdf"><em>Techniques and Applications for Guest-Language Safepoints</em></a>
+In Proceedings of the 10th Workshop on Implementation, Compilation, Optimization of Object-Oriented Languages, Programs and Systems (ICOOOLPS), Prague, Czech Republic, July 6, 2015.
+    <blockquote>
+      <p>A mechanism enabling powerful features like interrupting all threads to execute arbitrary code at zero cost on normal execution.</p>
+    </blockquote>
+  </li>
+  <li>B. Daloze.
+<a href="/blog/assets/research/mozart-2-multicore.pdf"><em>Extending Mozart 2 to Support Multicore Processors</em></a>.
+Master thesis, Université Catholique de Louvain, Belgium, 2014.
+    <blockquote>
+      <p>Extension of the new implementation of Oz, Mozart 2, to allow multiple virtual machines to run in parallel in a single operating system process.</p>
+    </blockquote>
+  </li>
+</ul>
+
+<h2 id="activities">Activities</h2>
+
+<ul>
+  <li>Member of the Program Committee of <a href="https://conf.researchr.org/track/ecoop-issta-2018/ICOOOLPS-2018-papers">ICOOOLPS 2018</a>.</li>
+</ul>
+
+<h2 id="other-activities">Other Activities</h2>
+
+<ul>
+  <li>Committer of <a href="https://github.com/ruby/ruby">CRuby (aka MRI)</a>: the reference implementation of Ruby.</li>
+  <li>Maintainer of <a href="https://github.com/ruby/spec">ruby/spec</a>: the standard executable specification of the Ruby programming language.</li>
+</ul>
+
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2021 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>
