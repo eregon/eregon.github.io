@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Contributions to ruby/spec &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2025/05/03/contributions-to-ruby-spec.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Contributions to ruby/spec" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="As a maintainer of ruby/spec I sometimes wonder how much each Ruby implementation contributes to ruby/spec. Without further ado, here it is:" />
+<meta property="og:description" content="As a maintainer of ruby/spec I sometimes wonder how much each Ruby implementation contributes to ruby/spec. Without further ado, here it is:" />
+<link rel="canonical" href="https://eregon.me/blog/2025/05/03/contributions-to-ruby-spec.html" />
+<meta property="og:url" content="https://eregon.me/blog/2025/05/03/contributions-to-ruby-spec.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2025-05-03T00:00:00+02:00" />
+<script type="application/ld+json">
+{"description":"As a maintainer of ruby/spec I sometimes wonder how much each Ruby implementation contributes to ruby/spec. Without further ado, here it is:","headline":"Contributions to ruby/spec","dateModified":"2025-05-03T00:00:00+02:00","datePublished":"2025-05-03T00:00:00+02:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2025/05/03/contributions-to-ruby-spec.html"},"url":"https://eregon.me/blog/2025/05/03/contributions-to-ruby-spec.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2025-05-03 00:00:00 +0200">May 03, 2025</time>
+    
+  </div>
+
+  <h1 class="post-title">Contributions to ruby/spec</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>As a maintainer of ruby/spec I sometimes wonder how much each Ruby implementation contributes to ruby/spec.
+Without further ado, here it is:</p>
+
+<p><img src="/blog/assets/rubyspec-contribs.png" alt="" /></p>
+
+<h2 id="interpretation">Interpretation</h2>
+
+<p>Rubinius started ruby/spec (called RubySpec back then) and was the main contributor until 2014.
+In 2015, Rubinius development <a href="https://github.com/rubinius/rubinius/graphs/contributors">slowed down significantly</a> and so did their work on adding specs (more on that in this <a href="/blog/2015/07/29/rubyspec-is-reborn.html">10 years old post</a>).</p>
+
+<p>In 2014, TruffleRuby was started and quickly became the main contributor to ruby/spec, contributing more than half of all commits since then.</p>
+
+<p>CRuby has contributed consistently to ruby/spec, around 20% of all commits each year.
+This is great to see as CRuby is in the unique position of implementing new methods first and deciding the expected behavior.</p>
+
+<p>JRuby contributed significantly until 2012 but since then has made few contributions.</p>
+
+<p><a href="https://natalie-lang.org/">Natalie</a>, a Ruby implementation started in 2019 made significant contributions since 2022, big thanks to <a href="https://github.com/herwinw">@herwinw</a> which contributed most of that.</p>
+
+<p>External contributors have always been an important part of ruby/spec.
+This chart might unfortunately have slightly lower numbers for external contributors due to the GitHub API only providing contributor statistics for the top 100 contributors (see below for more details on that).</p>
+
+<p>You might notice the huge spike for external contributors in 2009.
+This is because <a href="https://github.com/runpaint">@runpaint</a> contributed <a href="https://github.com/eregon/rubyspec-stats/blob/92298be1469b2640f24a1f681a6d984634bf51ef/contributors/per_year.yml#L23">1145 commits</a> that year, while working on migrating specs from Ruby 1.8 to Ruby 1.9 and adding many new specs.</p>
+
+<h2 id="before-2008">Before 2008</h2>
+
+<p>The first specs were actually added directly in the Rubinius repository, <a href="https://github.com/ruby/spec/blob/2b886623f7589bc01dcda5efd4b59abba269e264/CHANGES.before-2008-05-10#L17794">in 2006</a>.
+Commits between 2006 and 9 May 2008 are recorded in <a href="https://github.com/ruby/spec/blob/2b886623f7589bc01dcda5efd4b59abba269e264/CHANGES.before-2008-05-10">a changelog file</a> but are not part of the ruby/spec repository history. Basically, before May 2008 everything was contributed through the Rubinius repository.
+Also bear in mind that the data for the chart above is incomplete for the first and last years.</p>
+
+<h2 id="methodology">Methodology</h2>
+
+<p>If one want to see contributions by individual author instead, that is <a href="https://github.com/ruby/spec/graphs/contributors">available directly on GitHub</a>.</p>
+
+<p>The data is computed by <a href="https://github.com/eregon/rubyspec-stats/blob/master/contributors/contribs.rb">this script</a> and the chart is generated by <a href="https://github.com/eregon/rubyspec-stats/blob/master/contributors/chart.py">this script</a>.
+You can find all computed data files in <a href="https://github.com/eregon/rubyspec-stats/blob/master/contributors/">this directory</a>.</p>
+
+<p>The GitHub API only provides contributor statistics for the top 100 contributors, so everything is based on that data.
+The top 100 contributors to ruby/spec amounts to 13069 commits, out of 15045 commits total.</p>
+
+<p>To classify authors by Ruby implementation, I used the top 100 contributors of each Ruby implementation.
+If the author contributed at least 10 commit to a Ruby implementation and is in the top 100 contributors the script considers them as contributing to ruby/spec through that Ruby implementation.
+If the author contributed to more than one Ruby implementation, I just pick the one they contributed the most commits to.
+This is not perfect but it seems <a href="https://github.com/eregon/rubyspec-stats/blob/master/contributors/mapping.yml">reasonably accurate</a>.</p>
+
+<p>As always, commits are not a perfect measure of how much was contributed, but seems the best estimate we have readily available.</p>
+
+<h2 id="more-charts">More Charts</h2>
+
+<p>For curiosity, I also redid the chart with a minimum of 100 commits to classify authors as contributing through a Ruby implementation (to only count key contributors to a Ruby implementation as such and classify the rest as external contributors).
+The result looks similar, though with more external contributors as expected:</p>
+
+<p><img src="/blog/assets/rubyspec-contribs-100commits.png" alt="" /></p>
+
+<p>I also did a chart with the absolute numbers of commits instead of relative to the number of commits per year. The commits for 2025 are fewer because we are only in May. This chart uses the 10 commits limit as the original chart to classify per Ruby implementation.</p>
+
+<p><img src="/blog/assets/rubyspec-contribs-absolute.png" alt="" /></p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>ruby/spec is key to implementing Ruby correctly and efficiently.
+It provides extensive coverage of Ruby’s behavior, far more precise than the documentation.
+ruby/spec has always relied on external contributions, from individuals and from contributors to alternative Ruby implementations.
+Contributing to ruby/spec is contributing to making Ruby better specified, better tested and helping Ruby implementations to be more compatible.</p>
+
+<p>The <a href="https://github.com/ruby/ruby/tree/master/test/ruby">CRuby test suite</a>, while extensive and valuable, is unfortunately in my experience not enough to implement Ruby correctly based on it alone.
+A clear indication of that is the hundreds of CRuby issues (inconsistencies, segfaults, incorrect behaviors, etc) reported and discovered while writing ruby/spec specs.</p>
+
+<p>My intuition there is the structure of ruby/spec specs (nested <code class="highlighter-rouge">describe</code>s, etc) encourages to test all representative behaviors such as e.g. the various combinations of passing different argument types to some parameters together with passing a block or not, etc.
+OTOH unit tests as done in the CRuby test suite typically consist of a few assertions within a single <code class="highlighter-rouge">test_foo</code> method. I think having everything in a single test method discourages to write many assertions (to avoid too long methods) and often means there are only a few edge cases or basic cases being tested.
+In addition, there is no descriptive text explaining what is being tested so one needs to reverse engineer what an assertion is supposed to test every time one looks at such a test.
+I am thinking to potentially pick 10 random methods and compare their specs &amp; tests to figure out how much this holds in a future blog post.</p>
+
+</div>
+
+<div class="pagination">
+  
+  
+    <a href="/blog/2025/03/14/matching-regexps-200-times-faster.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

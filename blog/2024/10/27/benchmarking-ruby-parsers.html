@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Benchmarking Ruby Parsers &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2024/10/27/benchmarking-ruby-parsers.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Benchmarking Ruby Parsers" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="The new Prism parser has become the default in Ruby 3.4.0 preview 2." />
+<meta property="og:description" content="The new Prism parser has become the default in Ruby 3.4.0 preview 2." />
+<link rel="canonical" href="https://eregon.me/blog/2024/10/27/benchmarking-ruby-parsers.html" />
+<meta property="og:url" content="https://eregon.me/blog/2024/10/27/benchmarking-ruby-parsers.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2024-10-27T00:00:00+02:00" />
+<script type="application/ld+json">
+{"description":"The new Prism parser has become the default in Ruby 3.4.0 preview 2.","headline":"Benchmarking Ruby Parsers","dateModified":"2024-10-27T00:00:00+02:00","datePublished":"2024-10-27T00:00:00+02:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2024/10/27/benchmarking-ruby-parsers.html"},"url":"https://eregon.me/blog/2024/10/27/benchmarking-ruby-parsers.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2024-10-27 00:00:00 +0200">October 27, 2024</time>
+    
+  </div>
+
+  <h1 class="post-title">Benchmarking Ruby Parsers</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>The new <a href="https://github.com/ruby/prism">Prism</a> parser has <a href="https://bugs.ruby-lang.org/issues/20564">become the default</a> in Ruby 3.4.0 preview 2.</p>
+
+<p>Let’s benchmark Ruby parsers and find out how fast they are.</p>
+
+<p>We run benchmarks on Ruby 3.4.0 preview 2 with YJIT (<code class="highlighter-rouge">ruby 3.4.0preview2 (2024-10-07 master 32c733f57b) +YJIT +PRISM [x86_64-linux]</code>), on an <code class="highlighter-rouge">AMD Ryzen 7 3700X 8-Core Processor</code> and a NVMe M.2 SSD, on Linux, with frequency scaling disabled and the <code class="highlighter-rouge">performance</code> CPU governor.</p>
+
+<p>We will compare:</p>
+<ul>
+  <li><code class="highlighter-rouge">prism 1.2.0</code></li>
+  <li><code class="highlighter-rouge">parser 3.3.5.0</code></li>
+  <li><code class="highlighter-rouge">ruby_parser 3.21.1</code></li>
+  <li><code class="highlighter-rouge">Ripper</code> from <code class="highlighter-rouge">ruby 3.4.0preview2</code></li>
+  <li><code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code> from <code class="highlighter-rouge">ruby 3.4.0preview2</code></li>
+</ul>
+
+<p>Which are the latest releases at the time of writing.</p>
+
+<p>Our corpus will be all <code class="highlighter-rouge">.rb</code> files in <code class="highlighter-rouge">railties</code> <code class="highlighter-rouge">7.2.1.2</code>, that is 151 files, consisting of 14625 lines and 455673 bytes in total.</p>
+
+<p>Let me start with: benchmarking parsers fairly is <a href="https://github.com/ruby/prism/issues/1692#issuecomment-1764595938">hard</a>.</p>
+
+<p>All these parsers return different ASTs.
+Some have more information than others and might be more or less practical to use, but they are all ASTs representing Ruby code.</p>
+
+<p>One major concern performance-wise is that some parsers might allocate Ruby objects lazily and instead only keep some C structs around.
+This is the case of <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code>, as can be seen by looking at allocations:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> 36835 Prism::Node allocations for Prism.parse
+ 37762 Parser::AST::Node allocations for Parser gem
+ 79749 Sexp allocations for RubyParser
+230854 Array allocations for Ripper.sexp
+   151 RubyVM::AbstractSyntaxTree::Node allocations for RubyVM::AbstractSyntaxTree
+</code></pre></div></div>
+
+<p>36835 nodes for Prism is consistent with the 37762 nodes for the Parser gem.
+79749 for RubyParser seems a bit much but still the same order of magnitude.
+230854 for Ripper looks to be an outlier, but one inaccuracy here is Ripper uses Arrays not only for nodes but also for positions like <code class="highlighter-rouge">[line, column]</code> and Arrays might be used for other things too.
+<code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code> only allocates 151 nodes (one per file), which proves it creates Ruby node objects lazily.</p>
+
+<p>One way to avoid that laziness is to <a href="https://gist.github.com/eregon/27b56c686e238bafa6b46b73f17a4618#file-bench_parsers-rb-L15-L48">walk all nodes in the AST</a>.
+Doing that, we get:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> 36835 Prism::Node allocations for Prism.parse
+ 36835 Prism::Node allocations for Prism.parse + walk
+ 37762 Parser::AST::Node allocations for Parser gem
+ 37762 Parser::AST::Node allocations for Parser gem + walk
+ 79749 Sexp allocations for RubyParser
+ 79749 Sexp allocations for RubyParser + walk
+230854 Array allocations for Ripper.sexp
+230854 Array allocations for Ripper.sexp + walk
+   151 RubyVM::AbstractSyntaxTree::Node allocations for RubyVM::AbstractSyntaxTree
+ 36262 RubyVM::AbstractSyntaxTree::Node allocations for RubyVM::AbstractSyntaxTree + walk
+</code></pre></div></div>
+
+<p>So <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code> needs special care to be benchmarked fairly.</p>
+
+<p>While we are at it, here are the total number of Ruby-level allocations:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  75610 total allocations for Prism.parse
+ 112445 total allocations for Prism.parse + walk
+  diff: +36835 Arrays
+
+ 823320 total allocations for Parser gem
+ 823320 total allocations for Parser gem + walk
+
+1028578 total allocations for RubyParser
+1028578 total allocations for RubyParser + walk
+
+ 341687 total allocations for Ripper.sexp
+ 341687 total allocations for Ripper.sexp + walk
+
+  16044 total allocations for RubyVM::AbstractSyntaxTree
+  92495 total allocations for RubyVM::AbstractSyntaxTree + walk
+  diff: +38568 Arrays, +36111 RubyVM::AbstractSyntaxTree::Node, +1689 Strings, +83 Regexps
+</code></pre></div></div>
+
+<p>We can see walking the AST:</p>
+<ul>
+  <li>causes extra Array allocations for Prism because each call to <code class="highlighter-rouge">child_nodes</code> allocates an Array.</li>
+  <li>does not allocate for the Parser gem because it keeps child nodes in an Array internally and <code class="highlighter-rouge">#children</code> just returns that.</li>
+  <li>does not allocate for RubyParser and Ripper because their representation is just Arrays (or <code class="highlighter-rouge">Sexp</code>, a subclass of Array).</li>
+  <li>allocates Arrays and nodes for <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code>.</li>
+</ul>
+
+<h2 id="parsing-and-walking">Parsing and Walking</h2>
+
+<p>So to try to benchmark <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code> fairly we can walk the AST for all parsers:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Calculating -------------------------------------
+               Prism.parse + walk     27.087 (± 0.0%) i/s   (36.92 ms/i) -    136.000 in   5.021906s
+                Parser gem + walk      2.246 (± 0.0%) i/s  (445.33 ms/i) -     12.000 in   5.343971s
+                RubyParser + walk      1.632 (± 0.0%) i/s  (612.90 ms/i) -      9.000 in   5.516460s
+               Ripper.sexp + walk     11.265 (± 0.0%) i/s   (88.77 ms/i) -     57.000 in   5.065812s
+RubyVM::AbstractSyntaxTree + walk     24.272 (± 4.1%) i/s   (41.20 ms/i) -    122.000 in   5.031333s
+
+Comparison:
+               Prism.parse + walk:       27.1 i/s
+RubyVM::AbstractSyntaxTree + walk:       24.3 i/s - 1.12x  slower
+               Ripper.sexp + walk:       11.3 i/s - 2.40x  slower
+                Parser gem + walk:        2.2 i/s - 12.06x  slower
+                RubyParser + walk:        1.6 i/s - 16.60x  slower
+</code></pre></div></div>
+
+<p>However, this gives an advantage to Ripper, the Parser gem, and RubyParser as they don’t need extra Array allocations to walk the AST.
+Despite that advantage, all three are slower than Prism.</p>
+
+<p>Prism and <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code> are more than 10 times as fast as the Parser gem and RubyParser in this benchmark.
+That’s quite the speedup.</p>
+
+<h2 id="parsing-and-not-walking">Parsing and not Walking</h2>
+
+<p>Or we can exclude <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code> and not walk the AST:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Calculating -------------------------------------
+         Prism.parse     32.590 (± 0.0%) i/s   (30.68 ms/i) -    165.000 in   5.063030s
+          Parser gem      2.256 (± 0.0%) i/s  (443.30 ms/i) -     12.000 in   5.319708s
+          RubyParser      1.638 (± 0.0%) i/s  (610.58 ms/i) -      9.000 in   5.495618s
+         Ripper.sexp     11.834 (± 0.0%) i/s   (84.51 ms/i) -     60.000 in   5.077234s
+
+Comparison:
+Prism.parse:       32.6 i/s
+Ripper.sexp:       11.8 i/s - 2.75x  slower
+ Parser gem:        2.3 i/s - 14.45x  slower
+ RubyParser:        1.6 i/s - 19.90x  slower
+</code></pre></div></div>
+
+<h2 id="just-parsing">Just Parsing</h2>
+
+<p>We can also find a way to measure just the parsing itself and the creation of C data structures to hold the parse result.
+In this configuration the parser will allocate as few Ruby objects as possible.
+This approach is feasible for <code class="highlighter-rouge">Prism</code> and for <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code>.
+<code class="highlighter-rouge">Prism.profile</code> parses to C structs and does nothing else.
+<code class="highlighter-rouge">RubyVM::AbstractSyntaxTree.parse</code> uses <a href="https://github.com/ruby/ruby/blob/v3_4_0_preview2/parse.y">parse.y</a>, the LALR-based parser used in CRuby 3.3 and before.
+<code class="highlighter-rouge">RubyVM::AbstractSyntaxTree.parse</code> does very little extra work besides parsing to C structs, which I double-checked by measuring the time around <code class="highlighter-rouge">yyparse()</code> (the entry point for <code class="highlighter-rouge">parse.y</code>) for a large file.
+About 99.8% of the time is spent inside <code class="highlighter-rouge">yyparse()</code>, so <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree.parse</code> is a good approximation for <code class="highlighter-rouge">yyparse()</code>/<code class="highlighter-rouge">parse.y</code>.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>151 files, 14625 lines, 455673 bytes
+
+0 total allocations for Prism.profile
+
+16095 total allocations for RubyVM::AbstractSyntaxTree:
+  15559 Strings, 302 Datas, 151 RubyVM::AbstractSyntaxTree::Node, 83 Regexps
+
+Calculating -------------------------------------
+             Prism.profile    100.447 (± 2.0%) i/s    (9.96 ms/i) -    510.000 in   5.079433s
+RubyVM::AbstractSyntaxTree     39.186 (± 2.6%) i/s   (25.52 ms/i) -    198.000 in   5.056720s
+
+Comparison:
+             Prism.profile:      100.4 i/s
+RubyVM::AbstractSyntaxTree:       39.2 i/s - 2.56x  slower
+</code></pre></div></div>
+
+<p>Prism parses this corpus of 455673 bytes in 9.96 ms, which is 43.6 MB/s, compared to 17.0 MB/s for <code class="highlighter-rouge">parse.y</code>.
+In other words, <code class="highlighter-rouge">Prism</code> is 2.56 times as fast as <code class="highlighter-rouge">parse.y</code> in parsing this corpus of Ruby code!</p>
+
+<p>There are 16095 allocations for <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code>, most of which are Strings.
+Of those Strings, most are the one String per line (14625 lines) that the lexer used by <code class="highlighter-rouge">yyparse()</code> allocates (in <code class="highlighter-rouge">rb_parser_lex_get_str()</code>).
+We see 151 <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree::Node</code>: one per file, as expected.</p>
+
+<h2 id="from-source-to-cruby-bytecode">From Source To CRuby Bytecode</h2>
+
+<p>We have one more benchmark to measure compilation from source code to CRuby bytecode using <code class="highlighter-rouge">RubyVM::InstructionSequence.compile_prism</code> and <code class="highlighter-rouge">RubyVM::InstructionSequence.compile_parsey</code> (for <code class="highlighter-rouge">parse.y</code>).
+In this benchmark the input and output are exactly the same for both variants so it is as fair as it gets.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>151 files, 14625 lines, 455673 bytes
+
+10477 total allocations for RubyVM::InstructionSequence.compile_prism:
+  3753 Strings, 3389 Arrays, 2717 Imemos, 378 Hashs, 151 RubyVM::InstructionSequence, 83 Regexps, 6 Structs
+
+28782 total allocations for RubyVM::InstructionSequence.compile_parsey, including 151 RubyVM::InstructionSequence:
+  18476 Strings, 4237 Arrays, 2868 Imemos, 2501 Datas, 377 Hashs, 166 Regexps, 151 RubyVM::InstructionSequence, 6 Structs
+
+Calculating -------------------------------------
+ RubyVM::InstructionSequence.compile_prism     36.499 (± 0.0%) i/s   (27.40 ms/i) -    183.000 in   5.014395s
+RubyVM::InstructionSequence.compile_parsey     25.050 (± 0.0%) i/s   (39.92 ms/i) -    126.000 in   5.030555s
+
+Comparison:
+ RubyVM::InstructionSequence.compile_prism:       36.5 i/s
+RubyVM::InstructionSequence.compile_parsey:       25.1 i/s - 1.46x  slower
+</code></pre></div></div>
+
+<p>That’s a nice 1.46x speedup for Prism here.
+This improvement makes Ruby programs and applications boot faster on CRuby, by reducing the amount of time spent parsing and compiling to bytecode.
+Prism is also used in <a href="https://github.com/natalie-lang/natalie/pull/1213">other</a> <a href="https://github.com/oracle/truffleruby/issues/3117">Ruby</a> <a href="https://blog.jruby.org/2024/02/jruby-prism-parser">implementations</a> and has sped up parsing and boot times there as well.</p>
+
+<h2 id="script">Script</h2>
+
+<p><a href="https://gist.github.com/eregon/27b56c686e238bafa6b46b73f17a4618">Here is the script</a> I used to benchmark and get allocation counts.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Benchmarking Ruby parsers is trickier than one might expect, but overall the result is clear: Prism is the fastest Ruby parser.</p>
+<ul>
+  <li>When parsing and walking, Prism is 12% faster than <code class="highlighter-rouge">RubyVM::AbstractSyntaxTree</code> and 12x as fast as the Parser gem!</li>
+  <li>When parsing to C structs, Prism is 2.56x as fast as <code class="highlighter-rouge">parse.y</code>. Who thought parsing Ruby in C could be made more than twice as fast?</li>
+  <li>When compiling to bytecode, Prism is 1.46x as fast as <code class="highlighter-rouge">parse.y</code>, speeding up boot times.</li>
+</ul>
+
+<p>Beyond raw performance, Prism also provides a great and <a href="https://ruby.github.io/prism/">well documented</a> API, which makes it much easier to build fast tooling for and in Ruby.</p>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2025/03/14/matching-regexps-200-times-faster.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2023/02/12/fork-flaws.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

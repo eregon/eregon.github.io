@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Running Optcarrot, a Ruby NES emulator, at 150 fps with the GUI! &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2016/11/28/optcarrot.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Running Optcarrot, a Ruby NES emulator, at 150 fps with the GUI!" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="TruffleRuby runs Optcarrot, a NES emulator written in Ruby, at 150 fps while playing a NES game." />
+<meta property="og:description" content="TruffleRuby runs Optcarrot, a NES emulator written in Ruby, at 150 fps while playing a NES game." />
+<link rel="canonical" href="https://eregon.me/blog/2016/11/28/optcarrot.html" />
+<meta property="og:url" content="https://eregon.me/blog/2016/11/28/optcarrot.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2016-11-28T00:00:00+01:00" />
+<script type="application/ld+json">
+{"description":"TruffleRuby runs Optcarrot, a NES emulator written in Ruby, at 150 fps while playing a NES game.","headline":"Running Optcarrot, a Ruby NES emulator, at 150 fps with the GUI!","dateModified":"2016-11-28T00:00:00+01:00","datePublished":"2016-11-28T00:00:00+01:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2016/11/28/optcarrot.html"},"url":"https://eregon.me/blog/2016/11/28/optcarrot.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2016-11-28 00:00:00 +0100">November 28, 2016</time>
+    
+  </div>
+
+  <h1 class="post-title">Running Optcarrot, a Ruby NES emulator, at 150 fps with the GUI!</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p><a href="https://github.com/graalvm/truffleruby">TruffleRuby</a> runs <a href="https://github.com/mame/optcarrot">Optcarrot</a>, a <a href="https://en.wikipedia.org/wiki/Nintendo_Entertainment_System">NES</a> emulator written in Ruby, at 150 fps <em>while playing a NES game</em>.</p>
+
+<p>As we can see in the GIF, performance gets better as we play and the JIT kicks in. We start with 2 fps and a fairly laggy game in level 1 and end up at 150 fps with a very responsive game in level 3.</p>
+
+<p><img src="/blog/assets/optcarrot_screenshot.png" alt="Screenshot" style="display: inline" />
+<img src="/blog/assets/nes.gif" alt="Recording" style="display: inline" /></p>
+
+<h3 id="the-optcarrot-benchmark">The Optcarrot benchmark</h3>
+
+<p><a href="https://github.com/mame/optcarrot">Optcarrot</a> is a key benchmark for <a href="http://engineering.appfolio.com/appfolio-engineering/2015/11/18/ruby-3x3">Ruby 3x3</a> created by <a href="https://github.com/mame">@mame</a>.
+It is also a NES emulator and runs around 20 fps (frames per second) on MRI, the reference implementation.
+Therefore, if MRI meets the 3x3 goal then it should run Optcarrot at 60 fps, the frequency of the NES,
+and we can play NES games!</p>
+
+<p>But why wait? And why limit ourselves to 60 fps?
+When Optcarrot was announced a few months ago, I tried running it with TruffleRuby.
+<a href="http://chrisseaton.com/rubytruffle">TruffleRuby</a> is a high-performance Ruby implementation based on Truffle and Graal
+on which I work and do research for more than 2 years now, along with Chris Seaton, Kevin Menard and Petr Chalupa.</p>
+
+<p>The result was astonishing: the Optcarrot benchmark ran around 180 fps.
+That’s about 9 times faster than MRI!</p>
+
+<p><img src="/blog/assets/compare.png" alt="Boxplot" /></p>
+
+<p>The only change needed to reach that level of performance was to <a href="https://github.com/jruby/jruby/commit/5b4cdca0177f03a3ba110571aa26e60ec39ebdfe">fix</a> a <code class="highlighter-rouge">compare_by_identity</code> Hash bug.
+Now you may wonder about startup, warmup or how long it takes until it’s fast.
+Here is the full picture for the first 3000 frames (that’s just 50 seconds at 60 fps).</p>
+
+<p><img src="/blog/assets/times.png" alt="Times" /></p>
+
+<p>MRI 2.3.3 runs around 20 fps and is very stable, JRuby 9.1.6.0 with invokedynamic runs around 40 fps and TruffleRuby (from GraalVM 0.18) around 180 fps after warmup.
+There is definitely some warmup going on, but the milestone of 60 fps is reached at around 300 frames.
+For the record, this was run on a laptop with an Intel(R) Core(TM) i7-4702HQ CPU @ 2.20GHz
+with frequency scaling, turbo mode and hyper-threading all disabled.</p>
+
+<p>But so far, these numbers were just for the benchmark, and it would be nice to actually use TruffleRuby to play the NES and see the numbers on a real game!</p>
+
+<h3 id="the-user-interface">The User Interface</h3>
+
+<p>I developed a new video driver to display the NES screen, using <code class="highlighter-rouge">mplayer</code>, which only requires <a href="https://github.com/eregon/optcarrot/blob/287e13c03c992ba6779aa8a175662c90ecfef027/lib/optcarrot/driver/mplayer_video.rb#L41">writing the pixels to a pipe</a>.
+I then adapted the FPS counter to be able to display 3 digits instead of maximum 2.</p>
+
+<p>The existing video backends (SDL2, SFML) rely on FFI, which TruffleRuby does not support yet.
+The reason is existing implementations of FFI use native extensions of either <a href="https://github.com/ffi/ffi/tree/master/ext/ffi_c">10k lines of C</a> or <a href="https://github.com/jruby/jruby/tree/master/core/src/main/java/org/jruby/ext/ffi">10k lines of Java</a>, so it’s not clear which way is best to support it (handle all that implementation-specific extension code or port some parts to Ruby).</p>
+
+<p>For the input, I used the existing terminal-based <a href="https://github.com/mame/optcarrot/blob/master/lib/optcarrot/driver/term_input.rb">input driver</a> which just reads characters one by one.</p>
+
+<p>The audio driver was disabled because audio doesn’t sound nice at a higher frame rate. The audio stream is still computed though, as in benchmark mode.</p>
+
+<p>With this setup, we can play the NES as shown in the GIF above and it eventually reaches 150 fps on the Lan Master game. The drop from 180 fps is likely due to the extra work to render the frames to the screen and running a more varied workload (the benchmark mode only runs the splash screen).</p>
+
+<p>There is a problem though with playing at 150 fps: it’s really hard!
+For time-based games such as Lan Master, it means we have less than half (2/5) of the time we get at 60 fps. On the other hand, the game is really reactive and it’s much faster to move across the board.</p>
+
+<h3 id="trying-it-for-yourself">Trying it for yourself</h3>
+
+<p>First download <a href="http://www.oracle.com/technetwork/oracle-labs/program-languages/downloads/index.html">GraalVM</a>: choose the Runtime Environment as it’s smaller.</p>
+
+<p>You also need <code class="highlighter-rouge">mplayer</code> installed with your favorite package manager.
+Then:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">git clone https://github.com/eregon/optcarrot.git <span class="nt">--branch</span> demo
+<span class="nb">cd </span>optcarrot
+path/to/graalvm-0.18-re/bin/ruby bin/optcarrot <span class="nt">--video</span><span class="o">=</span>mplayer <span class="nt">--audio</span><span class="o">=</span>none <span class="nt">--input</span><span class="o">=</span>term examples/Lan_Master.nes</code></pre></figure>
+
+<p>Be patient, startup takes a while (loading files, loading the ROM, compiling the emulator and sending enough frames for mplayer to show up).</p>
+
+<p>You need to click on the terminal before entering any input.
+Use <code class="highlighter-rouge">Z</code> and <code class="highlighter-rouge">X</code> to rotate the links and the arrow keys to move around.</p>
+
+<h3 id="the-end">The End</h3>
+
+<p>I hope you liked the post.
+I would like to thank <a href="https://github.com/mame">@mame</a> for this awesome benchmark.</p>
+
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2017/12/28/thread-report-on-exception.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2015/07/29/rubyspec-is-reborn.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

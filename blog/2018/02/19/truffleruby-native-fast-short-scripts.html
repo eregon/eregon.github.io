@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      TruffleRuby Native: Fast Even for Short Scripts &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2018/02/19/truffleruby-native-fast-short-scripts.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="TruffleRuby Native: Fast Even for Short Scripts" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="TruffleRuby Native has fast startup and warmup, bringing gains over MRI even on short-running scripts." />
+<meta property="og:description" content="TruffleRuby Native has fast startup and warmup, bringing gains over MRI even on short-running scripts." />
+<link rel="canonical" href="https://eregon.me/blog/2018/02/19/truffleruby-native-fast-short-scripts.html" />
+<meta property="og:url" content="https://eregon.me/blog/2018/02/19/truffleruby-native-fast-short-scripts.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-02-19T00:00:00+01:00" />
+<script type="application/ld+json">
+{"description":"TruffleRuby Native has fast startup and warmup, bringing gains over MRI even on short-running scripts.","headline":"TruffleRuby Native: Fast Even for Short Scripts","dateModified":"2018-02-19T00:00:00+01:00","datePublished":"2018-02-19T00:00:00+01:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2018/02/19/truffleruby-native-fast-short-scripts.html"},"url":"https://eregon.me/blog/2018/02/19/truffleruby-native-fast-short-scripts.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2018-02-19 00:00:00 +0100">February 19, 2018</time>
+    
+  </div>
+
+  <h1 class="post-title">TruffleRuby Native: Fast Even for Short Scripts</h1>
+  <div class="post-line"></div>
+
+  
+
+  <h2 id="introduction">Introduction</h2>
+
+<p>Nowadays, it seems every major Ruby implementation has a Just-In-Time (JIT) compiler.
+Recently, <a href="https://medium.com/@k0kubun/the-method-jit-compiler-for-ruby-2-6-388ee0989c13">YARV-MJIT</a> has been merged to MRI (CRuby) trunk.
+<a href="http://jruby.org/">JRuby</a> relies on the Java Virtual Machine JIT compilers,
+and <a href="https://github.com/oracle/truffleruby">TruffleRuby</a> uses <a href="https://github.com/oracle/graal">Graal</a>.</p>
+
+<p>One big challenge for JIT compilers is to be beneficial on short-running scripts.
+In general, JIT compilers are better for long-running applications like web servers.</p>
+
+<p>John Hawthorn Recently wrote a <a href="https://www.johnhawthorn.com/2018/02/playing-with-ruby-jit-mjit/">blog post</a> about using YARV-MJIT for a small Ruby script.
+In this post, I want to expand on that and analyze the performance of 43 short-running programs (from 0.04s to 20s).
+Quick startup and fast warmup are therefore important to achieve good results.</p>
+
+<p>JRuby and TruffleRuby on JVM do not perform well on short-running programs
+as their startup alone gives them a big disadvantage.
+On the other hand, TruffleRuby on SubstrateVM has much better startup and warmup.</p>
+
+<h2 id="truffleruby-native">TruffleRuby Native</h2>
+
+<p><a href="https://github.com/oracle/truffleruby">TruffleRuby</a> can run on 2 different virtual machines:</p>
+
+<ul>
+  <li>The HotSpot Java Virtual Machine, which has multiple just-in-time compilers and achieves the best peak performance. But the startup is not great (~2s), mostly due to classloading.</li>
+  <li>The <a href="http://nirvdrum.com/2017/02/15/truffleruby-on-the-substrate-vm.html">SubstrateVM</a>, which provides very fast startup and fast warmup.</li>
+</ul>
+
+<p>In both cases, the <a href="https://github.com/oracle/graal">Graal</a> dynamic/just-in-time compiler is used to compile
+Ruby code down to machine code and obtain great peak performance.</p>
+
+<p>Since we look at short scripts, we pick TruffleRuby on SubstrateVM, also called <em>TruffleRuby Native</em> in this post.
+TruffleRuby is part of GraalVM, which can be downloaded on <a href="http://www.oracle.com/technetwork/oracle-labs/program-languages/downloads/index.html">OTN</a>.
+To run TruffleRuby Native, just add a <code class="highlighter-rouge">--native</code> flag to <code class="highlighter-rouge">bin/ruby</code>:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span><span class="nb">time </span>graalvm-0.31/bin/ruby <span class="nt">-v</span> <span class="nt">-e</span> <span class="s1">'puts "Slow Startup ..."'</span>
+truffleruby 0.31, like ruby 2.3.5 &lt;GraalVM 0.31 with Graal&gt; <span class="o">[</span>linux-x86_64]
+Slow Startup ...
+6.26s user 0.18s system 339% cpu 1.899 total
+
+<span class="nv">$ </span><span class="nb">time </span>graalvm-0.31/bin/ruby <span class="nt">--native</span> <span class="nt">-v</span> <span class="nt">-e</span> <span class="s1">'puts "Fast Native Startup!"'</span>
+truffleruby 0.31, like ruby 2.3.5 &lt;native build with Graal&gt; <span class="o">[</span>linux-x86_64]
+Fast Native Startup!
+0.08s user 0.01s system 99% cpu 0.084 total</code></pre></figure>
+
+<p>That’s pretty fast.
+I have been working on TruffleRuby startup for a while and it’s starting to look nice.
+Not as good as MRI yet, but we’re getting there (that’s for another blog post).</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nv">$ </span><span class="nb">time </span>ruby <span class="nt">-v</span> <span class="nt">-e</span> <span class="s1">'puts "MRI Startup"'</span>
+ruby 2.5.0p0 <span class="o">(</span>2017-12-25 revision 61468<span class="o">)</span> <span class="o">[</span>x86_64-linux]
+MRI Startup
+0.03s user 0.00s system 98% cpu 0.040 total</code></pre></figure>
+
+<h2 id="the-benchmarks">The Benchmarks</h2>
+
+<p>Startup is interesting, but it would be much more interesting to try on real Ruby scripts.
+So I took my solutions to <a href="http://adventofcode.com/2017">Advent of Code</a>, for all 25 days and both puzzles of each day.
+This amounts to 43 benchmarks, as for some of the days a single script solves both puzzles.</p>
+
+<p>I wrote these solutions. So, of course, they might be biased and might not be representative of other short-running Ruby scripts.
+But I wrote them in good faith, optimizing for a concise and elegant style,
+tweaking the code for performance only when it would run for too long.
+For Advent of Code, I enjoy writing code straight from the problem description
+rather than reasoning about the maths behind the puzzle.
+Note that I also made a couple tweaks to TruffleRuby after solving the puzzles (see below for details), which are now part of GraalVM 0.31.</p>
+
+<p>In this blog post, I use the latest MRI/CRuby trunk as of writing (r62451) as the baseline.
+I also try the new bundled YARV-MJIT and compare against the <a href="https://github.com/vnmakarov/ruby/commit/21bbbd37">latest</a> <a href="https://github.com/vnmakarov/ruby/tree/rtl_mjit_branch">RTL-MJIT</a> from Vladimir Makarov and TruffleRuby Native from GraalVM 0.31.</p>
+
+<p><code class="highlighter-rouge">Enumerable#sum</code> and <code class="highlighter-rouge">Kernel#yield_self</code> are not defined in all implementations as some of them target a different Ruby version than 2.5.
+So I used a <a href="https://github.com/eregon/adventofcode/blob/6e054d1a/2017/compat.rb">compat.rb</a> file defining these methods in Ruby only when the method does not exist (<code class="highlighter-rouge">sum</code> is needed for TruffleRuby and <code class="highlighter-rouge">yield_self</code> for RTL-MJIT).
+I verified all implementations produce the same output.
+I <a href="https://github.com/eregon/adventofcode/blob/master/2017/bench.rb">ran</a> each benchmark 10 times and took the <a href="https://github.com/eregon/adventofcode/blob/master/2017/stats.rb">average</a>.
+The maximal deviation from the average across the 10 runs is: for MRI trunk 8%, YARV-MJIT 8%, TruffleRuby Native 13% and RTL-MJIT 78% (due to the unstable startup time between 54ms and &gt;100ms; the maximal deviation is 10% for programs running over 1s).
+For completeness, this is run on a laptop with Fedora 26, an Intel Core i7-7700HQ CPU @ 2.80GHz and a SSD.
+MRI was compiled with the system GCC 7.2.1 20170915 (Red Hat 7.2.1-2), which is also used by YARV-MJIT and RTL-MJIT.</p>
+
+<p>The results are in seconds.
+The implementations are compared with time differences (Δ) instead of speedup/slowdown factors to reflect how much time a user gains or loses (10x faster if it’s already &lt;100ms does not make a difference to the user in such a use case).</p>
+
+<p>Cells highlighted in green show gains compared to the baseline.
+Cells in red highlight losses of more than 1 second.</p>
+
+<table><thead><th>Bench</th>
+<th>MRI trunk</th>
+<th>YARV-MJIT</th>
+<th>Δ</th>
+<th>RTL-MJIT</th>
+<th>Δ</th>
+<th>TruffleRuby Native</th>
+<th>Δ</th></thead><tbody><tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/1a.rb">1a.rb</a></td>
+<td style="text-align: right">0.041</td>
+<td style="text-align: right">0.176</td>
+<td style="text-align: right">+0.135</td>
+<td style="text-align: right">0.094</td>
+<td style="text-align: right">+0.053</td>
+<td style="text-align: right">0.164</td>
+<td style="text-align: right">+0.123</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/1b.rb">1b.rb</a></td>
+<td style="text-align: right">0.040</td>
+<td style="text-align: right">0.179</td>
+<td style="text-align: right">+0.139</td>
+<td style="text-align: right">0.094</td>
+<td style="text-align: right">+0.054</td>
+<td style="text-align: right">0.103</td>
+<td style="text-align: right">+0.063</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/2a.rb">2a.rb</a></td>
+<td style="text-align: right">0.040</td>
+<td style="text-align: right">0.230</td>
+<td style="text-align: right">+0.191</td>
+<td style="text-align: right">0.172</td>
+<td style="text-align: right">+0.133</td>
+<td style="text-align: right">0.090</td>
+<td style="text-align: right">+0.050</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/2b.rb">2b.rb</a></td>
+<td style="text-align: right">0.040</td>
+<td style="text-align: right">0.198</td>
+<td style="text-align: right">+0.158</td>
+<td style="text-align: right">0.086</td>
+<td style="text-align: right">+0.047</td>
+<td style="text-align: right">0.115</td>
+<td style="text-align: right">+0.075</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/3a.rb">3a.rb</a></td>
+<td style="text-align: right">0.040</td>
+<td style="text-align: right">0.227</td>
+<td style="text-align: right">+0.187</td>
+<td style="text-align: right">0.185</td>
+<td style="text-align: right">+0.145</td>
+<td style="text-align: right">0.078</td>
+<td style="text-align: right">+0.038</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/3b.rb">3b.rb</a></td>
+<td style="text-align: right">0.040</td>
+<td style="text-align: right">0.239</td>
+<td style="text-align: right">+0.199</td>
+<td style="text-align: right">0.197</td>
+<td style="text-align: right">+0.156</td>
+<td style="text-align: right">0.098</td>
+<td style="text-align: right">+0.057</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/4a.rb">4a.rb</a></td>
+<td style="text-align: right">0.041</td>
+<td style="text-align: right">0.226</td>
+<td style="text-align: right">+0.185</td>
+<td style="text-align: right">0.132</td>
+<td style="text-align: right">+0.091</td>
+<td style="text-align: right">0.133</td>
+<td style="text-align: right">+0.092</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/4b.rb">4b.rb</a></td>
+<td style="text-align: right">0.045</td>
+<td style="text-align: right">0.195</td>
+<td style="text-align: right">+0.149</td>
+<td style="text-align: right">0.102</td>
+<td style="text-align: right">+0.057</td>
+<td style="text-align: right">0.401</td>
+<td style="text-align: right">+0.355</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/5a.rb">5a.rb</a></td>
+<td style="text-align: right">0.080</td>
+<td style="text-align: right">0.227</td>
+<td style="text-align: right">+0.147</td>
+<td style="text-align: right">0.187</td>
+<td style="text-align: right">+0.107</td>
+<td style="text-align: right">0.274</td>
+<td style="text-align: right">+0.194</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/5b.rb">5b.rb</a></td>
+<td style="text-align: right">3.312</td>
+<td style="text-align: right">3.583</td>
+<td style="text-align: right">+0.271</td>
+<td style="text-align: right">3.151</td>
+<td style="text-align: right" class="fast">-0.160</td>
+<td style="text-align: right">0.534</td>
+<td style="text-align: right" class="fast">-2.778</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/6.rb">6.rb</a></td>
+<td style="text-align: right">0.087</td>
+<td style="text-align: right">0.222</td>
+<td style="text-align: right">+0.135</td>
+<td style="text-align: right">0.133</td>
+<td style="text-align: right">+0.046</td>
+<td style="text-align: right">0.283</td>
+<td style="text-align: right">+0.197</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/7a.rb">7a.rb</a></td>
+<td style="text-align: right">0.043</td>
+<td style="text-align: right">0.215</td>
+<td style="text-align: right">+0.171</td>
+<td style="text-align: right">0.111</td>
+<td style="text-align: right">+0.068</td>
+<td style="text-align: right">0.162</td>
+<td style="text-align: right">+0.119</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/7b.rb">7b.rb</a></td>
+<td style="text-align: right">0.046</td>
+<td style="text-align: right">0.239</td>
+<td style="text-align: right">+0.193</td>
+<td style="text-align: right">0.143</td>
+<td style="text-align: right">+0.097</td>
+<td style="text-align: right">0.260</td>
+<td style="text-align: right">+0.214</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/8a.rb">8a.rb</a></td>
+<td style="text-align: right">0.042</td>
+<td style="text-align: right">0.294</td>
+<td style="text-align: right">+0.252</td>
+<td style="text-align: right">0.249</td>
+<td style="text-align: right">+0.208</td>
+<td style="text-align: right">0.135</td>
+<td style="text-align: right">+0.093</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/8b.rb">8b.rb</a></td>
+<td style="text-align: right">0.042</td>
+<td style="text-align: right">0.316</td>
+<td style="text-align: right">+0.274</td>
+<td style="text-align: right">0.288</td>
+<td style="text-align: right">+0.246</td>
+<td style="text-align: right">0.144</td>
+<td style="text-align: right">+0.101</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/9.rb">9.rb</a></td>
+<td style="text-align: right">0.042</td>
+<td style="text-align: right">0.232</td>
+<td style="text-align: right">+0.189</td>
+<td style="text-align: right">0.140</td>
+<td style="text-align: right">+0.098</td>
+<td style="text-align: right">0.135</td>
+<td style="text-align: right">+0.093</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/10a.rb">10a.rb</a></td>
+<td style="text-align: right">0.040</td>
+<td style="text-align: right">0.225</td>
+<td style="text-align: right">+0.186</td>
+<td style="text-align: right">0.173</td>
+<td style="text-align: right">+0.133</td>
+<td style="text-align: right">0.093</td>
+<td style="text-align: right">+0.053</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/10b.rb">10b.rb</a></td>
+<td style="text-align: right">0.046</td>
+<td style="text-align: right">0.283</td>
+<td style="text-align: right">+0.237</td>
+<td style="text-align: right">0.123</td>
+<td style="text-align: right">+0.077</td>
+<td style="text-align: right">0.181</td>
+<td style="text-align: right">+0.134</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/11.rb">11.rb</a></td>
+<td style="text-align: right">13.818</td>
+<td style="text-align: right">15.706</td>
+<td style="text-align: right" class="slow">+1.889</td>
+<td style="text-align: right">14.246</td>
+<td style="text-align: right">+0.429</td>
+<td style="text-align: right">0.805</td>
+<td style="text-align: right" class="fast">-13.013</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/12a.rb">12a.rb</a></td>
+<td style="text-align: right">0.043</td>
+<td style="text-align: right">0.252</td>
+<td style="text-align: right">+0.209</td>
+<td style="text-align: right">0.122</td>
+<td style="text-align: right">+0.079</td>
+<td style="text-align: right">0.152</td>
+<td style="text-align: right">+0.108</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/12b.rb">12b.rb</a></td>
+<td style="text-align: right">0.044</td>
+<td style="text-align: right">0.181</td>
+<td style="text-align: right">+0.137</td>
+<td style="text-align: right">0.083</td>
+<td style="text-align: right">+0.039</td>
+<td style="text-align: right">0.179</td>
+<td style="text-align: right">+0.135</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/13a.rb">13a.rb</a></td>
+<td style="text-align: right">0.043</td>
+<td style="text-align: right">0.201</td>
+<td style="text-align: right">+0.158</td>
+<td style="text-align: right">0.102</td>
+<td style="text-align: right">+0.059</td>
+<td style="text-align: right">0.201</td>
+<td style="text-align: right">+0.158</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/13b.rb">13b.rb</a></td>
+<td style="text-align: right">1.830</td>
+<td style="text-align: right">1.979</td>
+<td style="text-align: right">+0.149</td>
+<td style="text-align: right">1.503</td>
+<td style="text-align: right" class="fast">-0.327</td>
+<td style="text-align: right">0.456</td>
+<td style="text-align: right" class="fast">-1.374</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/14a.rb">14a.rb</a></td>
+<td style="text-align: right">0.211</td>
+<td style="text-align: right">0.308</td>
+<td style="text-align: right">+0.097</td>
+<td style="text-align: right">0.272</td>
+<td style="text-align: right">+0.061</td>
+<td style="text-align: right">0.684</td>
+<td style="text-align: right">+0.472</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/14b.rb">14b.rb</a></td>
+<td style="text-align: right">0.244</td>
+<td style="text-align: right">0.307</td>
+<td style="text-align: right">+0.063</td>
+<td style="text-align: right">0.342</td>
+<td style="text-align: right">+0.098</td>
+<td style="text-align: right">0.984</td>
+<td style="text-align: right">+0.740</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/15a.rb">15a.rb</a></td>
+<td style="text-align: right">15.565</td>
+<td style="text-align: right">14.988</td>
+<td style="text-align: right" class="fast">-0.576</td>
+<td style="text-align: right">14.069</td>
+<td style="text-align: right" class="fast">-1.495</td>
+<td style="text-align: right">2.166</td>
+<td style="text-align: right" class="fast">-13.399</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/15b.rb">15b.rb</a></td>
+<td style="text-align: right">8.802</td>
+<td style="text-align: right">8.404</td>
+<td style="text-align: right" class="fast">-0.398</td>
+<td style="text-align: right">7.974</td>
+<td style="text-align: right" class="fast">-0.828</td>
+<td style="text-align: right">1.278</td>
+<td style="text-align: right" class="fast">-7.524</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/16a.rb">16a.rb</a></td>
+<td style="text-align: right">0.051</td>
+<td style="text-align: right">0.311</td>
+<td style="text-align: right">+0.260</td>
+<td style="text-align: right">0.195</td>
+<td style="text-align: right">+0.144</td>
+<td style="text-align: right">0.361</td>
+<td style="text-align: right">+0.310</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/16b.rb">16b.rb</a></td>
+<td style="text-align: right">19.581</td>
+<td style="text-align: right">22.147</td>
+<td style="text-align: right" class="slow">+2.566</td>
+<td style="text-align: right">24.874</td>
+<td style="text-align: right" class="slow">+5.293</td>
+<td style="text-align: right">8.994</td>
+<td style="text-align: right" class="fast">-10.587</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/17a.rb">17a.rb</a></td>
+<td style="text-align: right">0.040</td>
+<td style="text-align: right">0.240</td>
+<td style="text-align: right">+0.200</td>
+<td style="text-align: right">0.133</td>
+<td style="text-align: right">+0.093</td>
+<td style="text-align: right">0.103</td>
+<td style="text-align: right">+0.063</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/17b_no_buffer.rb">17b.rb</a></td>
+<td style="text-align: right">3.027</td>
+<td style="text-align: right">2.411</td>
+<td style="text-align: right" class="fast">-0.616</td>
+<td style="text-align: right">1.577</td>
+<td style="text-align: right" class="fast">-1.451</td>
+<td style="text-align: right">0.588</td>
+<td style="text-align: right" class="fast">-2.439</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/18a.rb">18a.rb</a></td>
+<td style="text-align: right">0.042</td>
+<td style="text-align: right">0.165</td>
+<td style="text-align: right">+0.123</td>
+<td style="text-align: right">0.078</td>
+<td style="text-align: right">+0.036</td>
+<td style="text-align: right">0.109</td>
+<td style="text-align: right">+0.067</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/18b.rb">18b.rb</a></td>
+<td style="text-align: right">0.076</td>
+<td style="text-align: right">0.184</td>
+<td style="text-align: right">+0.108</td>
+<td style="text-align: right">0.088</td>
+<td style="text-align: right">+0.012</td>
+<td style="text-align: right">0.810</td>
+<td style="text-align: right">+0.734</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/19.rb">19.rb</a></td>
+<td style="text-align: right">0.068</td>
+<td style="text-align: right">0.187</td>
+<td style="text-align: right">+0.119</td>
+<td style="text-align: right">0.129</td>
+<td style="text-align: right">+0.061</td>
+<td style="text-align: right">0.530</td>
+<td style="text-align: right">+0.463</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/20a.rb">20a.rb</a></td>
+<td style="text-align: right">3.362</td>
+<td style="text-align: right">3.908</td>
+<td style="text-align: right">+0.545</td>
+<td style="text-align: right">3.071</td>
+<td style="text-align: right" class="fast">-0.291</td>
+<td style="text-align: right">2.170</td>
+<td style="text-align: right" class="fast">-1.192</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/20b.rb">20b.rb</a></td>
+<td style="text-align: right">2.100</td>
+<td style="text-align: right">2.394</td>
+<td style="text-align: right">+0.294</td>
+<td style="text-align: right">2.096</td>
+<td style="text-align: right" class="fast">-0.004</td>
+<td style="text-align: right">5.101</td>
+<td style="text-align: right" class="slow">+3.001</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/21.rb">21.rb</a></td>
+<td style="text-align: right">3.408</td>
+<td style="text-align: right">3.697</td>
+<td style="text-align: right">+0.289</td>
+<td style="text-align: right">3.886</td>
+<td style="text-align: right">+0.478</td>
+<td style="text-align: right">3.731</td>
+<td style="text-align: right">+0.323</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/22a.rb">22a.rb</a></td>
+<td style="text-align: right">0.063</td>
+<td style="text-align: right">0.261</td>
+<td style="text-align: right">+0.198</td>
+<td style="text-align: right">0.167</td>
+<td style="text-align: right">+0.104</td>
+<td style="text-align: right">0.277</td>
+<td style="text-align: right">+0.214</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/22b.rb">22b.rb</a></td>
+<td style="text-align: right">16.493</td>
+<td style="text-align: right">18.182</td>
+<td style="text-align: right" class="slow">+1.689</td>
+<td style="text-align: right">16.893</td>
+<td style="text-align: right">+0.400</td>
+<td style="text-align: right">2.734</td>
+<td style="text-align: right" class="fast">-13.759</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/23a.rb">23a.rb</a></td>
+<td style="text-align: right">0.047</td>
+<td style="text-align: right">0.205</td>
+<td style="text-align: right">+0.158</td>
+<td style="text-align: right">0.080</td>
+<td style="text-align: right">+0.033</td>
+<td style="text-align: right">0.277</td>
+<td style="text-align: right">+0.230</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/23b.rb">23b.rb</a></td>
+<td style="text-align: right">4.297</td>
+<td style="text-align: right">3.906</td>
+<td style="text-align: right" class="fast">-0.391</td>
+<td style="text-align: right">2.058</td>
+<td style="text-align: right" class="fast">-2.239</td>
+<td style="text-align: right">0.582</td>
+<td style="text-align: right" class="fast">-3.715</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/24.rb">24.rb</a></td>
+<td style="text-align: right">5.726</td>
+<td style="text-align: right">5.899</td>
+<td style="text-align: right">+0.173</td>
+<td style="text-align: right">6.474</td>
+<td style="text-align: right">+0.748</td>
+<td style="text-align: right">1.901</td>
+<td style="text-align: right" class="fast">-3.825</td></tr>
+<tr><td><a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/25.rb">25.rb</a></td>
+<td style="text-align: right">1.980</td>
+<td style="text-align: right">2.094</td>
+<td style="text-align: right">+0.114</td>
+<td style="text-align: right">1.929</td>
+<td style="text-align: right" class="fast">-0.051</td>
+<td style="text-align: right">1.563</td>
+<td style="text-align: right" class="fast">-0.417</td></tr>
+<tr><td><strong>Total</strong></td>
+<td style="text-align: right"><strong>105.068</strong></td>
+<td style="text-align: right"><strong>116.023</strong></td>
+<td style="text-align: right" class="slow"><strong>+10.954</strong></td>
+<td style="text-align: right"><strong>108.203</strong></td>
+<td style="text-align: right" class="slow"><strong>+3.135</strong></td>
+<td style="text-align: right"><strong>40.118</strong></td>
+<td style="text-align: right" class="fast"><strong>-64.950</strong></td></tr></tbody></table>
+
+<p>There seems to be essentially 2 categories in these benchmarks.
+Scripts which take less than 1 second and on which none of the implementations with a JIT runs faster than MRI trunk.
+But the JIT implementations also don’t take more than 1 second, so it’s likely not a big difference to the user.</p>
+
+<p>For scripts which run for more than 1 second, TruffleRuby Native saves
+a significant amount of time (except 20b.rb and 21.rb).
+YARV-MJIT and RTL-MJIT achieve some gains on that second category as well,
+although they are much more modest.</p>
+
+<p>Overall, the last line (Total) shows that YARV-MJIT and RTL-MJIT are not improving
+the total time needed to run those scripts.
+It is a big challenge for JIT compilers to be beneficial on short-running scripts.
+However, since TruffleRuby Native gains so much on the second category,
+it manages to execute all scripts in less than half the time <code class="highlighter-rouge">MRI trunk</code> takes!</p>
+
+<h2 id="analysis">Analysis</h2>
+
+<p>All 3 contenders have slower startup than <code class="highlighter-rouge">MRI trunk</code> here.
+YARV-MJIT currently has the known problem to <a href="https://medium.com/@k0kubun/the-method-jit-compiler-for-ruby-2-6-388ee0989c13">compile a header on every startup and waiting for it</a>.
+It seems RTL-MJIT has the same issue.
+TruffleRuby Native currently has to load its core library written in Ruby on startup, which makes it a bit slower than MRI.</p>
+
+<p>The other issue is warmup.
+The approach to shell out to an external compiler and emitting C code (MJIT) is far from
+optimal in terms of warmup (how long it takes until the often-executed parts of the program are compiled).
+For instance, running <code class="highlighter-rouge">ruby --jit --jit-verbose=1 15a.rb</code> shows that compiling a method with YARV-MJIT takes
+at minimum 28ms and the median for all 82 methods compiled is 105ms.</p>
+
+<p>With TruffleRuby Native, the TruffleRuby interpreter and Graal are compiled ahead-of-time by SubstrateVM to machine code.
+That machine code is saved in an executable (called the image).
+When starting the executable, we have an already warmed-up TruffleRuby interpreter and calling the JIT compiler is just a method call away.
+Since Graal is ahead-of-time compiled it starts compiling faster than on JVM and requires no classloading.
+So for instance, <code class="highlighter-rouge">graalvm-0.31/bin/ruby --native --native.XX:+TraceTruffleCompilation 15a.rb</code> shows that Graal takes 11ms to compile the <a href="https://github.com/eregon/adventofcode/blob/a483e444/2017/15a.rb#L20">block at line 20</a>, compared to 70ms for YARV-MJIT.</p>
+
+<p>On 20b.rb, the slowdown for TruffleRuby seems to be caused by Struct#== using Struct#values,
+which is not specialized compared to other Struct methods (it’s a bug, Struct#to_a is specialized).</p>
+
+<p>Finally, it’s time to consider performance as a whole.
+We see that for slightly longer scripts, TruffleRuby can save up to 13 seconds.
+The maximum gain for YARV-MJIT is 1 second and for RTL-MJIT 2 seconds.</p>
+
+<p>For YARV-MJIT, it is still the early days and it does not have many optimizations.
+RTL-MJIT has more optimizations, but does not support Ruby inlining currently.
+TruffleRuby supports Ruby inlining and also inlining to and from the core library (for both the part written in Ruby and the part written in Java). It even supports inlining Ruby method calls <a href="http://chrisseaton.com/rubytruffle/cext/">from C extensions</a>.</p>
+
+<h2 id="integertimes-and-on-stack-replacement">Integer#times and On-Stack-Replacement</h2>
+
+<p>Some programs (particularly short-running ones) are hard to optimize for a JIT compiler.
+For instance, let’s take <a href="https://www.johnhawthorn.com/2018/02/playing-with-ruby-jit-mjit/">John Hawthorn’s solution</a> to Day 15:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">40_000_000</span><span class="p">)</span>
+  <span class="n">n</span><span class="p">.</span><span class="nf">times</span><span class="p">.</span><span class="nf">count</span> <span class="k">do</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="mi">16807</span> <span class="o">%</span> <span class="mi">2147483647</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">b</span> <span class="o">*</span> <span class="mi">48271</span> <span class="o">%</span> <span class="mi">2147483647</span>
+
+    <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="nb">p</span> <span class="ss">result: </span><span class="n">calculate</span><span class="p">(</span><span class="mi">699</span><span class="p">,</span> <span class="mi">124</span><span class="p">)</span></code></pre></figure>
+
+<p>Let’s simplify a little bit by removing the Enumerator to understand better what is going on
+(the same reasoning applies as <code class="highlighter-rouge">count</code> ends up calling <code class="highlighter-rouge">times</code> with a block, just with more indirections):</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="mi">40_000_000</span><span class="p">)</span>
+  <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="n">n</span><span class="p">.</span><span class="nf">times</span> <span class="k">do</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="mi">16807</span> <span class="o">%</span> <span class="mi">2147483647</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">b</span> <span class="o">*</span> <span class="mi">48271</span> <span class="o">%</span> <span class="mi">2147483647</span>
+
+    <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="mh">0xffff</span><span class="p">)</span>
+  <span class="k">end</span>
+  <span class="n">count</span>
+<span class="k">end</span>
+
+<span class="nb">p</span> <span class="ss">result: </span><span class="n">calculate</span><span class="p">(</span><span class="mi">699</span><span class="p">,</span> <span class="mi">124</span><span class="p">)</span></code></pre></figure>
+
+<p>Here, we would ideally compile the <code class="highlighter-rouge">calculate</code> method and inline everything called from there.
+But that method is only called once.
+So by the time the JIT compiler thinks it’s good to compile that method, we will be inside that method, never call it again, and keep executing in the non-compiled code.</p>
+
+<p>The next best thing is compiling <code class="highlighter-rouge">Integer#times</code>, inlining its block and everything from there.
+In TruffleRuby, <code class="highlighter-rouge">Integer#times</code> is defined in Ruby:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">class</span> <span class="nc">Integer</span> <span class="o">&lt;</span> <span class="no">Numeric</span>
+  <span class="k">def</span> <span class="nf">times</span>
+    <span class="k">return</span> <span class="n">to_enum</span><span class="p">(</span><span class="ss">:times</span><span class="p">)</span> <span class="p">{</span> <span class="nb">self</span> <span class="p">}</span> <span class="k">unless</span> <span class="nb">block_given?</span>
+
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">self</span>
+      <span class="k">yield</span> <span class="n">i</span>
+      <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">end</span>
+    <span class="nb">self</span>
+  <span class="k">end</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>But we meet the same problem. By the time we figure out this <code class="highlighter-rouge">times</code> method has a loop with many iterations and calls a block (<code class="highlighter-rouge">yield</code>) many times,
+we will already be in the <code class="highlighter-rouge">while</code> loop and when we get out the program finishes so we will never use a compiled version of <code class="highlighter-rouge">Integer#times</code>.</p>
+
+<p>That’s where On-Stack-Replacement (OSR) comes in.
+On-Stack-Replacement enables to compile a loop and jump to the compiled loop from the interpeter.
+TruffleRuby can perform On-Stack-Replacement in <code class="highlighter-rouge">while</code> loops thanks to the support for OSR by Truffle and Graal.</p>
+
+<p>Once Truffle detects an interpreter iterates in a loop many times (the default threshold is 100 000 loop iterations),
+it triggers an OSR compilation of that loop.
+Once that compilation finishes, the interpreter jumps in the compiled loop at the next iteration, executing the rest of the loop much faster.</p>
+
+<p>In this case, this works because <code class="highlighter-rouge">Integer#times</code> is written in Ruby and uses a <code class="highlighter-rouge">while</code> loop which has OSR support.
+In the previous GraalVM version (0.30), <code class="highlighter-rouge">Integer#times</code> was written in Java and did not have OSR support (it would be possible but more complex).
+This caused the block given to <code class="highlighter-rouge">times</code> to be compiled but not the loop itself which makes a big difference as calling a block from the interpreter is much slower than an inlined block call.</p>
+
+<p>When I was playing with <a href="https://github.com/eregon/adventofcode/commit/51378b18">my own solution for Day 15</a>, I tried redefining <code class="highlighter-rouge">Integer#times</code> in Ruby and that alone sped up the execution from 7 seconds to 2 seconds, illustrating the gains of On-Stack-Replacement.
+Interesting how defining more in Ruby can actually help performance.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Improving the performance of short-running programs with just-in-time compilers is challenging.</p>
+
+<p>If the program executes for less than a second, none of the implementations with a JIT compiler managed to gain anything compared to MRI trunk. But, they also all took less than a second, so it probably doesn’t matter much for scripts run only once or a few times.</p>
+
+<p>For programs running for longer than a second, TruffleRuby Native shows it is possible
+to gain a significant amount of time with a Just-In-Time compiler.
+This requires fast startup (well below 1 second) and fast warmup (otherwise the program finishes before the compiled code is used).
+Of course, the JIT compiler benefits from being more advanced such as supporting inlining and a better understanding of Ruby’s constructs.
+In the case of higher-level loops like <code class="highlighter-rouge">Integer#times</code> called only once and with many iterations,
+On-Stack-Replacement is important to achieve good performance.</p>
+
+<p>YARV-MJIT and RTL-MJIT are exciting but still very young JIT compilers for MRI.
+Improving warmup while shelling out to GCC (or Clang) is certainly challenging.
+Making GCC (or Clang) understand better Ruby constructs is also gonna be interesting.
+Let’s see what the future brings.</p>
+
+<p>If you want to try TruffleRuby Native, you can download GraalVM from <a href="http://www.oracle.com/technetwork/oracle-labs/program-languages/downloads/index.html">OTN</a>.
+See <a href="https://github.com/oracle/truffleruby#getting-started">Getting Started</a> for details.
+We are working on making it easier to install TruffleRuby (e.g., with rvm/rbenv-install/ruby-install),
+but that has not landed yet.</p>
+
+<p>If you liked this post, consider following <a href="https://twitter.com/eregontp">@eregontp</a> on Twitter for more Ruby, performance and concurrency blog posts.</p>
+
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2019/04/24/how-truffleruby-startup-became-faster-than-mri.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2018/02/11/trick-sudoku.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

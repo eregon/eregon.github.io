@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      How TruffleRuby's Startup Time Became Faster Than MRI's &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2019/04/24/how-truffleruby-startup-became-faster-than-mri.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="How TruffleRuby’s Startup Time Became Faster Than MRI’s" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Introduction" />
+<meta property="og:description" content="Introduction" />
+<link rel="canonical" href="https://eregon.me/blog/2019/04/24/how-truffleruby-startup-became-faster-than-mri.html" />
+<meta property="og:url" content="https://eregon.me/blog/2019/04/24/how-truffleruby-startup-became-faster-than-mri.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-04-24T00:00:00+02:00" />
+<script type="application/ld+json">
+{"description":"Introduction","headline":"How TruffleRuby’s Startup Time Became Faster Than MRI’s","dateModified":"2019-04-24T00:00:00+02:00","datePublished":"2019-04-24T00:00:00+02:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2019/04/24/how-truffleruby-startup-became-faster-than-mri.html"},"url":"https://eregon.me/blog/2019/04/24/how-truffleruby-startup-became-faster-than-mri.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2019-04-24 00:00:00 +0200">April 24, 2019</time>
+    
+  </div>
+
+  <h1 class="post-title">How TruffleRuby's Startup Time Became Faster Than MRI's</h1>
+  <div class="post-line"></div>
+
+  
+
+  <h2 id="introduction">Introduction</h2>
+
+<p>I want to talk about VM startup in Ruby. That is, the time it takes for a Ruby
+implementation to print “Hello World” with:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ruby -e 'puts "Hello World"'
+</code></pre></div></div>
+
+<p>This is a lower bound for running any Ruby script or application,
+and lower startup time typically results in an improved developer experience.</p>
+
+<p>MRI has been the gold standard for startup time, unbeaten so far by other Ruby implementations.
+Can we set a new record?
+Without further ado, here are the results for VM startup on the latest Ruby implementations:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Implementation</th>
+      <th style="text-align: right">Real Time (s)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>TruffleRuby Native 1.0.0-rc16</td>
+      <td style="text-align: right">0.025</td>
+    </tr>
+    <tr>
+      <td>MRI 2.6.2</td>
+      <td style="text-align: right">0.048</td>
+    </tr>
+    <tr>
+      <td>Rubinius 3.107</td>
+      <td style="text-align: right">0.150</td>
+    </tr>
+    <tr>
+      <td>JRuby 9.2.7.0</td>
+      <td style="text-align: right">1.357</td>
+    </tr>
+    <tr>
+      <td>TruffleRuby JVM 1.0.0-rc16</td>
+      <td style="text-align: right">1.787</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><a href="https://github.com/oracle/truffleruby">TruffleRuby</a> Native (the default) is leading here, with a startup time of only 25ms, followed by 48ms for MRI, 150ms for Rubinius and 1357ms for JRuby.
+OTOH, TruffleRuby JVM is much more representative of a typical (and slow) JVM startup,
+in the same order of magnitude as JRuby.
+To clarify, TruffleRuby Native is what one gets when installing TruffleRuby via <code class="highlighter-rouge">rvm</code>, <code class="highlighter-rouge">rbenv</code> or <code class="highlighter-rouge">chruby</code>.</p>
+
+<p>Each measurement is the average of 10 consecutive runs with:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ precise-time 10 `which ruby` -e 'puts "Hello World"'
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">precise-time</code> is a <a href="https://github.com/eregon/precise-time">small C program</a> I wrote to measure startup time precisely using <code class="highlighter-rouge">clock_gettime(CLOCK_MONOTONIC)</code>.</p>
+
+<p>Note that I do not consider any trick to improve startup time here like having a prepared JVM process around (<code class="highlighter-rouge">nailgun</code>, <code class="highlighter-rouge">drip</code>, etc). I just use my Ruby manager (<code class="highlighter-rouge">chruby</code>), switch to each ruby and run Hello World.
+FWIW, I think this kind of startup tricks is usually cumbersome to setup and therefore rarely used and not representative of what most users experience.</p>
+
+<h2 id="ahead-of-time-compilation-with-native-image">Ahead-Of-Time Compilation with Native Image</h2>
+
+<p>So how did we get from 1787ms to 25ms?
+The first and biggest step goes from 1787ms to 165ms (10x faster) by using a custom VM called SubstrateVM.</p>
+
+<p><a href="https://github.com/oracle/graal/tree/master/substratevm">SubstrateVM</a>, unlike, for example, HotSpot, loads all Java classes ahead-of-time, not at runtime.
+This is done once during a step called Native Image Generation, where SubstrateVM will look at the classpath, include every reachable class and compile those classes and methods to native code, all of that ahead-of-time.
+This native code is stored in a native executable, i.e., a “Native Image”.</p>
+
+<p>For instance, TruffleRuby is written in Java and Ruby, and all Java classes are compiled ahead-of-time into a native executable:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ls -lh `which truffleruby`
+-rwxr-xr-x. 1 eregon eregon 134M Apr 20 00:51 .../truffleruby-1.0.0-rc16/bin/truffleruby
+</code></pre></div></div>
+
+<p>At runtime, the application will then start with the <code class="highlighter-rouge">main()</code> method, but no classloading or JIT compilation of Java classes is needed; every Java method is already compiled to native code and ready to be run.</p>
+
+<p>That step alone reduces startup time to around 165ms.
+I think we can attribute these gains to:</p>
+<ul>
+  <li>Not having to load Java classes at runtime.</li>
+  <li>Having all Java methods precompiled to native code, rather than executing them in the Java interpreter and then JIT’ing some of them.</li>
+</ul>
+
+<p>This is not new, and Kevin Menard already discussed it in a <a href="http://nirvdrum.com/2017/02/15/truffleruby-on-the-substrate-vm.html">blog post</a> two years ago, but it is an important context to discuss further startup optimizations.</p>
+
+<h2 id="storing-extra-data-in-the-native-image">Storing Extra Data in the Native Image</h2>
+
+<p>SubstrateVM not only compiles Java classes ahead-of-time, it also executes the static initializers (corresponding to statements in the <code class="highlighter-rouge">class</code>/<code class="highlighter-rouge">module</code> body in Ruby).</p>
+
+<p>This gives the opportunity to run additional initializations ahead-of-time and store the resulting state in <code class="highlighter-rouge">static</code> (class) variables.</p>
+
+<p>One prime example here for TruffleRuby is storing the Ruby files of the core library. The core library in TruffleRuby is defined mostly in Ruby (similar to Rubinius) and as a result there are about 18 000 significant lines of Ruby code to load, on every startup, before executing any user Ruby code.</p>
+
+<p>Reading these 89 files from disk takes time, but further than that, parsing them to Abstract Syntax Trees (ASTs) is also time-consuming.
+It turns out, we could both read the files and parse them to ASTs ahead-of-time, in a static initializer, while SubstrateVM is compiling our Java code!</p>
+
+<p>This gives another boost for startup, producing Hello World in around 96ms.
+That’s still significantly slower than MRI, so we need to go deeper.</p>
+
+<h2 id="pre-initialization-and-freezing-the-entire-heap-with-native-image">Pre-Initialization and Freezing the Entire Heap with Native Image</h2>
+
+<p>Since we can read files and parse Ruby code ahead-of-time, could we also evaluate Ruby code ahead-of-time?
+Could we <code class="highlighter-rouge">load</code> the entire core library Ruby code during Native Image Generation?</p>
+
+<p>Yes we can, with SubstrateVM, and that’s how we got to 25ms startup!
+We call this step <em>pre-initialization</em> and this is actually available for any GraalVM-based language.</p>
+
+<p>However, this requires some care, and some parts of the core library initialization need to be delayed to, or patched at, runtime because they depend on the runtime environment.
+For instance, setting <code class="highlighter-rouge">$$</code> (the PID global variable) must be done at runtime, otherwise it would reflect the PID of the Native Image Generator process, which is no longer running.</p>
+
+<p>To optimize startup time to 25ms, I introduced pre-initialization in TruffleRuby as well as startup metrics, and as a side effect those metrics now document the steps performed during startup:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ AOT_BIN=`which truffleruby` jt metrics time --native --experimental-options --metrics-time-parsing-file -e 'puts "Hello World"'
+..........
+0.026 total
+ 0.004 vm
+ 0.022 main
+  0.013 patch-context
+   0.000 options
+   0.001 create-native-platform
+   0.003 rehash
+   0.009 run-delayed-initialization
+    0.000 kernel_operations.rb
+    0.000 encoding.rb
+    0.001 env.rb
+    0.000 posix.rb
+    0.000 main.rb
+    0.004 post.rb
+    0.003 post-boot.rb
+  0.006 run
+   0.004 script
+</code></pre></div></div>
+
+<p>With that, we can see around 13ms is spent in <code class="highlighter-rouge">patch-context</code>, the step to incorporate the runtime environment into the pre-initialized core library.</p>
+
+<p>A simple example of initialization that must be delayed to runtime is setting the process ID:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="no">Truffle</span><span class="o">::</span><span class="no">Boot</span><span class="p">.</span><span class="nf">delay</span> <span class="k">do</span>
+  <span class="vg">$$</span> <span class="o">=</span> <span class="no">Process</span><span class="p">.</span><span class="nf">pid</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>Similarly, setting <code class="highlighter-rouge">ARGV</code> must be done from runtime command-line arguments:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="no">Truffle</span><span class="o">::</span><span class="no">Boot</span><span class="p">.</span><span class="nf">delay</span> <span class="k">do</span>
+  <span class="no">ARGV</span> <span class="o">=</span> <span class="no">Truffle</span><span class="o">::</span><span class="no">Boot</span><span class="p">.</span><span class="nf">original_argv</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>Here is a list of other initializations that must be done at runtime:</p>
+<ul>
+  <li>Reading command-line options (e.g., <code class="highlighter-rouge">-w</code>), and using those instead of the options passed for Native Image Generation.</li>
+  <li>Setting the locale Encoding (it depends on <code class="highlighter-rouge">$LANG</code>).</li>
+  <li>Setting up signal handlers (they are part of the implicit process state).</li>
+  <li>Setting up <code class="highlighter-rouge">$LOAD_PATH</code> and <code class="highlighter-rouge">$LOADED_FEATURES</code>, since the TruffleRuby directory might change between Native Image Generation time and runtime.</li>
+  <li>Setting <code class="highlighter-rouge">$DEBUG</code> and <code class="highlighter-rouge">$VERBOSE</code>.</li>
+  <li>Setting a new random seed for hashing (<code class="highlighter-rouge">#hash</code>).</li>
+</ul>
+
+<p>This last item, <em>setting a new random seed for hashing</em>, is actually significantly more complicated than the rest.
+It’s easy to generate a new random seed and store it, and even to use it for new <code class="highlighter-rouge">#hash</code> calls.
+But what about existing objects, which might cache their <code class="highlighter-rouge">#hash</code> like Symbols?
+What about <code class="highlighter-rouge">Hash</code> objects created during pre-initialization, which determine the position in the buckets array by using the <code class="highlighter-rouge">#hash</code> of the keys, which itself used the old random seed?
+All of these need to be “patched”, to recompute their <code class="highlighter-rouge">#hash</code> based on the new random seed.
+To do so, we track every <code class="highlighter-rouge">Hash</code> created during pre-initialization and rehash internal hash tables such as the <code class="highlighter-rouge">Symbol</code> table.</p>
+
+<p>There are currently some restrictions on what SubstrateVM can pre-initialize:</p>
+<ul>
+  <li>Java Thread instances cannot be referenced in the Native Image. For instance, it would be complicated to restore execution stacks.</li>
+  <li>Native calls using Truffle’s FFI cannot be performed during pre-initialization.
+We could allow them during pre-initialization, but it’s often not a good idea to do so.
+For instance, holding on a native pointer allocated with <code class="highlighter-rouge">malloc()</code> or a file descriptor
+would not work as those would not exist in the runtime process.</li>
+</ul>
+
+<p>The ability to run static initializers ahead-of-time actually implies that SubstrateVM is able to
+store an entire Java heap into a native executable, such that when the executable starts, all the Java objects are already available with no extra work, with no deserialization or copy.
+SubstrateVM is therefore able to run arbitrary code during Native Image Generation and “freeze” the resulting Java heap into an executable.
+From that perspective, it is somewhat similar to <a href="https://www.criu.org/Main_Page">CRIU</a>, but more specialized and therefore faster for startup.</p>
+
+<h2 id="autoloading-rubygems">Autoloading RubyGems</h2>
+
+<p>We use another trick to speed up startup in TruffleRuby: we load RubyGems lazily.
+To do so, we use an <code class="highlighter-rouge">autoload</code> for the <code class="highlighter-rouge">Gem</code> constant and hook into <code class="highlighter-rouge">require</code> so RubyGems is loaded the first time <code class="highlighter-rouge">require</code> raises a LoadError (see <a href="https://github.com/oracle/truffleruby/blob/85bbbf0a/lib/truffle/truffle/lazy-rubygems.rb">this file</a> for details).</p>
+
+<p><code class="highlighter-rouge">require "rubygems"</code> in RubyGems 3.0.3 loads 21 RubyGems files (4010 SLOC), as well as the <code class="highlighter-rouge">rbconfig</code> (160 SLOC), <code class="highlighter-rouge">uri</code> (12 files, ~2000 SLOC), <code class="highlighter-rouge">stringio</code> (559 SLOC) and <code class="highlighter-rouge">monitor</code> (127 SLOC) standard libraries.
+That’s a fair amount of code which takes a while to load, and in some cases it’s simply not used at all (e.g., command-line tools using only the standard library).</p>
+
+<h2 id="future-work-and-application-startup">Future Work and Application Startup</h2>
+
+<p>In this blog post, I showed how we optimize VM startup in TruffleRuby.
+A related topic is application startup, that is, how long it takes before running any useful work in your application.
+For example, how long it takes for a Rails app until it can accept the first request.
+This of course depends a lot on the specific application.</p>
+
+<p>Application startup is not really fast yet on TruffleRuby, and it is something we want to improve on.
+For instance, <code class="highlighter-rouge">gem</code> and <code class="highlighter-rouge">bundle</code> commands are significantly slower than on MRI currently.</p>
+
+<p>Application startup seems composed of mostly two aspects:</p>
+<ul>
+  <li>how fast new Ruby code is parsed and,</li>
+  <li>how fast initialization (e.g., calls at the top-level or in the <code class="highlighter-rouge">class</code>/<code class="highlighter-rouge">module</code> body) is run.</li>
+</ul>
+
+<p>For the first aspect, we could think to parse Ruby files that might be loaded by the application, and save the resulting ASTs in the Native Image. This would skip reading them from disk and parsing time, much like we already do for the core library.
+However, this would require recreating a Native Image every time we want to include additional files, so it is not very practical for user-installed gems.
+We could of course also serialize ASTs (similarly to how Bootsnap caches serialized MRI bytecode), but then deserialization is typically slower than having all AST node objects already in the Native Image.</p>
+
+<p>The second aspect is directly related to interpreter speed.
+TruffleRuby is currently gathering a lot of profiling information while running in interpreter, to later feed it to the Just-In-Time compiler so that it can compile only the relevant part of each operation used by the Ruby code. However, that makes it slower to run code in the interpreter than MRI, which gathers almost no profiling information currently. I do think we can improve interpreter speed at both the TruffleRuby and Truffle levels though.</p>
+
+<h2 id="acknowledgments">Acknowledgments</h2>
+
+<p>I would like to thank Tomáš Zezula who worked on pre-initialization support in the <a href="https://github.com/oracle/graal/tree/master/truffle">Truffle Language Implementation Framework</a>, as well as all the contributors to <a href="https://github.com/oracle/graal/tree/master/substratevm">SubstrateVM</a> which helped to make fast startup for Java a reality.
+I would like to also thank Kevin Menard for proofreading this blog post.</p>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2019/10/07/a-new-should-syntax.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2018/02/19/truffleruby-native-fast-short-scripts.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

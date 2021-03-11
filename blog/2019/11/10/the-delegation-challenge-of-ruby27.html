@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      The Delegation Challenge of Ruby 2.7 &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="The Delegation Challenge of Ruby 2.7" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Ruby 3.0 will introduce the separation between positional and keyword arguments. The upcoming Ruby 2.7 release aims to introduce warnings for every argument behavior that will change in Ruby 3.0 to ease migration. However, delegation that works for Ruby 2.6, 2.7 and 3 seems a hard problem to solve." />
+<meta property="og:description" content="Ruby 3.0 will introduce the separation between positional and keyword arguments. The upcoming Ruby 2.7 release aims to introduce warnings for every argument behavior that will change in Ruby 3.0 to ease migration. However, delegation that works for Ruby 2.6, 2.7 and 3 seems a hard problem to solve." />
+<link rel="canonical" href="https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html" />
+<meta property="og:url" content="https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-11-10T00:00:00+01:00" />
+<script type="application/ld+json">
+{"description":"Ruby 3.0 will introduce the separation between positional and keyword arguments. The upcoming Ruby 2.7 release aims to introduce warnings for every argument behavior that will change in Ruby 3.0 to ease migration. However, delegation that works for Ruby 2.6, 2.7 and 3 seems a hard problem to solve.","headline":"The Delegation Challenge of Ruby 2.7","dateModified":"2019-11-10T00:00:00+01:00","datePublished":"2019-11-10T00:00:00+01:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html"},"url":"https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2019-11-10 00:00:00 +0100">November 10, 2019</time>
+    
+  </div>
+
+  <h1 class="post-title">The Delegation Challenge of Ruby 2.7</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>Ruby 3.0 will introduce the separation between positional and keyword arguments.
+The upcoming Ruby 2.7 release <a href="https://bugs.ruby-lang.org/issues/14183">aims to introduce warnings</a> for every argument
+behavior that will change in Ruby 3.0 to ease migration.
+However, delegation that works for Ruby 2.6, 2.7 and 3 seems a hard problem to solve.</p>
+
+<p>See the <a href="https://www.ruby-lang.org/en/news/2019/12/12/separation-of-positional-and-keyword-arguments-in-ruby-3-0/">migration guide on ruby-lang.org</a>
+if you want to migrate your code to work on 2.7+,
+and see <a href="https://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html">Correct Delegation with Ruby 2.6, 2.7 and 3.0</a> regarding delegation compatible with Ruby 2.6, 2.7 and 3.0.</p>
+
+<p>This blog post is mostly discussing various possibilities to fix delegation in Ruby 2.7.
+By now it is mostly history, only <code class="highlighter-rouge">ruby2_keywords</code> is available in Ruby 2.7.</p>
+
+<h2 id="what-will-change-for-arguments-in-ruby-3">What will change for arguments in Ruby 3?</h2>
+
+<p>From Ruby 2.0 until Ruby 2.6, keyword arguments in method definitions such as
+<code class="highlighter-rouge">def m(kwreq:, kwopt: 42, **kwrest)</code> are basically just syntactic sugar
+for extracting values from a <code class="highlighter-rouge">Hash</code> passed in last position.</p>
+
+<p>This however leads to some issues when keyword arguments are mixed with
+<code class="highlighter-rouge">optional = default</code> or <code class="highlighter-rouge">*rest</code> arguments.
+For instance, should <code class="highlighter-rouge">def m(opt = 42, **kwargs); end; m({ kw: 1 })</code> pass the Hash
+as keyword arguments (<code class="highlighter-rouge">**kwargs</code>) or as the value for the optional argument (<code class="highlighter-rouge">opt</code>)?
+In Ruby 2, the answer is it passes the Hash as keyword arguments.
+In Ruby 3 however, such a call would pass a Hash as positional, i.e., assign it to <code class="highlighter-rouge">opt</code>.</p>
+
+<p>There is no clear answer as to which is better, without a general rule, and the
+separation between positional and keyword arguments is that rule.</p>
+
+<p>Actually, there already is a similar separation in Ruby for the block argument.
+A block argument is always passed with <code class="highlighter-rouge">&amp;block</code> or as a literal block (<code class="highlighter-rouge">meth(*args) { ... }</code>)
+and is never mixed with other kinds of arguments.</p>
+
+<p>Here are some basics on what passes keyword arguments and what passes positional arguments:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">m</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<span class="k">end</span>
+
+<span class="n">h</span> <span class="o">=</span> <span class="p">{</span> <span class="ss">a: </span><span class="mi">1</span> <span class="p">}</span>
+
+<span class="n">m</span><span class="p">(</span><span class="ss">a: </span><span class="mi">1</span><span class="p">)</span> <span class="c1"># passes kwargs in Ruby 2 and 3</span>
+<span class="n">m</span><span class="p">(</span><span class="o">**</span><span class="n">h</span><span class="p">)</span>  <span class="c1"># passes kwargs in Ruby 2 and 3</span>
+
+<span class="n">m</span><span class="p">({</span><span class="ss">a: </span><span class="mi">1</span><span class="p">})</span> <span class="c1"># passes kwargs in Ruby 2 and positional in Ruby 3</span>
+<span class="n">m</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>      <span class="c1"># passes kwargs in Ruby 2 and positional in Ruby 3</span>
+</code></pre></div></div>
+
+<p>Methods not taking keyword arguments can still be called with the keyword
+arguments syntax. The reason here is to avoid breaking compatibility too much.
+If that was not done, such a call would raise an <code class="highlighter-rouge">ArgumentError</code>.</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">nokwargs</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+  <span class="n">args</span>
+<span class="k">end</span>
+
+<span class="n">nokwargs</span><span class="p">(</span><span class="ss">a: </span><span class="mi">1</span><span class="p">)</span> <span class="c1"># =&gt; [{a: 1}] in both Ruby 2 and 3</span>
+</code></pre></div></div>
+
+<p>One important change in Ruby 2.7, is that <code class="highlighter-rouge">**empty_hash</code> actually passes nothing:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">empty_hash</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">nokwargs</span><span class="p">(</span><span class="o">**</span><span class="n">empty_hash</span><span class="p">)</span> <span class="c1"># =&gt; [] in Ruby 2.7+, [{}] in Ruby 2.6</span>
+</code></pre></div></div>
+
+<p>Confusingly enough, <code class="highlighter-rouge">**{}</code> is treated specially by the parser and automatically
+removed in Ruby 2.6, which means:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">nokwargs</span><span class="p">(</span><span class="o">**</span><span class="p">{})</span> <span class="c1"># =&gt; [] in Ruby 2 and 3</span>
+</code></pre></div></div>
+
+<p>The rationale here is <code class="highlighter-rouge">m(**kwargs)</code>, much like <code class="highlighter-rouge">m(*args)</code> must pass nothing if it’s empty, that is if there are no arguments to pass.
+It was essentially a mistake of Ruby 2.6 and before to pass an empty Hash in such a case, but that’s how it is and we cannot change the past. Maybe it was somehow more compatible for some cases.</p>
+
+<p>These changes have been the work of Jeremy Evans (of Sequel fame), Yusuke Endoh (@mame) and others.
+I have been mostly watching and commenting on those changes.</p>
+
+<p>Now that we’ve got the basics we can look at the Delegation Challenge!</p>
+
+<p>I will not explain in this blog post how to make non-delegation code work on Ruby 3 and how to fix the warnings of Ruby 2.7, that’s the goal of the (upcoming at the time of writing) <a href="https://www.ruby-lang.org/en/news/2019/12/12/separation-of-positional-and-keyword-arguments-in-ruby-3-0/">migration guide on ruby-lang.org</a>, which is mentioned in the <a href="https://www.ruby-lang.org/en/news/2019/12/25/ruby-2-7-0-released/">Ruby 2.7 release notes</a>.</p>
+
+<h2 id="the-delegation-challenge">The Delegation Challenge</h2>
+
+<p>So now that we have a proper separation of keyword arguments, how should delegation look like?</p>
+
+<h3 id="ruby-2-style-delegation">Ruby 2-style Delegation</h3>
+
+<p>Up until Ruby 2.6, delegation had always been rather simple:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>And this was enough for perfect forwarding, i.e., pass whatever arguments are passed to <code class="highlighter-rouge">delegate</code> to <code class="highlighter-rouge">target</code>, as if <code class="highlighter-rouge">target</code> had been called directly.</p>
+
+<p>However this doesn’t quite work in Ruby 3:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+  <span class="p">[</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">]</span>
+<span class="k">end</span>
+
+<span class="n">target</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="ss">b: </span><span class="mi">2</span><span class="p">)</span> <span class="c1"># =&gt; [[1], {b: 2}] in Ruby 2 &amp; 3</span>
+
+<span class="n">delegate</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="ss">b: </span><span class="mi">2</span><span class="p">)</span> <span class="c1"># =&gt; [[1], {b: 2}] in Ruby 2, [[1, {b: 2}], {}] in Ruby 3</span>
+<span class="c1"># Ruby 2.7:</span>
+<span class="c1"># warning: The last argument is used as the keyword parameter</span>
+<span class="c1"># warning: for `target' defined here</span>
+<span class="c1"># =&gt; [[1], {b: 2}]</span>
+</code></pre></div></div>
+
+<p>Because <code class="highlighter-rouge">delegate</code> does not take keyword arguments, <code class="highlighter-rouge">b: 2</code> is passed as positional.
+In Ruby 3, it remains as positional and therefore results in different behavior than calling the method directly.
+In Ruby 2.7, it warns because the behavior changes in Ruby 3.</p>
+
+<h3 id="ruby-3-style-delegation">Ruby 3-style Delegation</h3>
+
+<p>So maybe we should use this to delegate instead?</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<span class="k">end</span>
+
+<span class="n">delegate</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="ss">b: </span><span class="mi">2</span><span class="p">)</span> <span class="c1"># =&gt; [[1], {b: 2}] in Ruby 2 &amp; 3</span>
+<span class="n">delegate</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>       <span class="c1"># =&gt; [[1], {}]     in Ruby 2 &amp; 3</span>
+<span class="n">delegate</span><span class="p">(</span><span class="ss">b: </span><span class="mi">2</span><span class="p">)</span>    <span class="c1"># =&gt; [[], {b: 2}]  in Ruby 2 &amp; 3</span>
+</code></pre></div></div>
+
+<p>Alright, this seems to work fine, but what if <code class="highlighter-rouge">target</code> does not take keyword arguments?</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+  <span class="n">args</span>
+<span class="k">end</span>
+
+<span class="n">target</span><span class="p">()</span>  <span class="c1"># =&gt; []   in Ruby 2 &amp; 3</span>
+<span class="n">target</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># =&gt; [1]  in Ruby 2 &amp; 3</span>
+
+<span class="n">delegate</span><span class="p">()</span>  <span class="c1"># =&gt; [{}]    in Ruby 2.6, []  in Ruby 2.7+</span>
+<span class="n">delegate</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># =&gt; [1, {}] in Ruby 2.6, [1] in Ruby 2.7+</span>
+</code></pre></div></div>
+
+<p>Now Ruby 2.6 starts to pass an extra positional Hash to <code class="highlighter-rouge">target</code> when there are no keyword arguments!
+That’s because <code class="highlighter-rouge">**empty_hash</code> passes <code class="highlighter-rouge">{}</code> in Ruby 2.6, and nothing in Ruby 2.7+.</p>
+
+<p>So neither of those <code class="highlighter-rouge">delegate</code> methods works on both Ruby 2 and 3, that is very unfortunate.</p>
+
+<p>And to make matters worse Ruby 2.7 has its own behavior different from Ruby 2.6 and Ruby 3:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">delegate</span><span class="p">(</span><span class="ss">b: </span><span class="mi">2</span><span class="p">)</span>     <span class="c1"># =&gt; {b: 2} in Ruby 2 &amp; 3</span>
+<span class="n">delegate</span><span class="p">({</span> <span class="ss">b: </span><span class="mi">2</span> <span class="p">})</span> <span class="c1"># =&gt; {b: 2} in Ruby 2 &amp; 3</span>
+<span class="c1"># However in 2.7 emits a warning (which is unjustified, passing a positional Hash to #target is fine):</span>
+<span class="c1"># warning: The last argument is used as the keyword parameter</span>
+<span class="c1"># warning: for `delegate' defined here</span>
+
+<span class="n">delegate</span><span class="p">({})</span> <span class="c1"># =&gt; [{}] in Ruby 2.6 &amp; 3, but [] in Ruby 2.7! (with a warning)</span>
+</code></pre></div></div>
+<p>For compatibility with 2.6, Ruby 2.7 passes <code class="highlighter-rouge">{}</code> as a keyword argument here, but
+then <code class="highlighter-rouge">delegate</code> receives <code class="highlighter-rouge">args=[]</code>, <code class="highlighter-rouge">kwargs={}</code> and call <code class="highlighter-rouge">target</code> with <code class="highlighter-rouge">**kwargs</code>,
+which passes nothing in 2.7 and therefore drops the given Hash!</p>
+
+<p>We can actually convince Ruby 2.7 to pass a positional Hash with <code class="highlighter-rouge">, **{}</code>:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">delegate</span><span class="p">({},</span> <span class="o">**</span><span class="p">{})</span> <span class="c1"># =&gt; [{}] in Ruby 2 and 3</span>
+</code></pre></div></div>
+
+<p>So for Ruby 2.7, neither of these approaches even works for all cases (without changing call sites to use <code class="highlighter-rouge">, **{}</code>).</p>
+
+<p>So that is the Delegation Challenge:
+How can we achieve perfect forwarding in Ruby 2.6, Ruby 2.7 and Ruby 3+ and avoid warnings from Ruby 2.7?</p>
+
+<h2 id="possible-solutions">Possible Solutions</h2>
+
+<p>There are multiple possibilities:</p>
+
+<h3 id="version-check-with-ruby-2--ruby-3-style-delegation">Version check with Ruby 2 + Ruby 3-style delegation</h3>
+
+<p>We could use a version check like:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span> <span class="no">RUBY_VERSION</span> <span class="o">&lt;</span> <span class="s2">"3"</span>
+  <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">else</span>
+  <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>This would work fine in Ruby 2.0-2.6 and Ruby 3+.
+Unfortunately it does not work in Ruby 2.7 which has behavior “in between” Ruby 2.6 and Ruby 3 (<code class="highlighter-rouge">**empty_hash</code> passes nothing but positional Hash are still converted to keyword arguments like in 2.6).
+We’d probably still want to be able to run the code on Ruby 2.7 to get the migration warnings to help migrating to Ruby 3. For that, we would need to address delegation on Ruby 2.7, otherwise there would be a lot of false-positive warnings.</p>
+
+<p>Maybe using Ruby 3-style delegation and adding <code class="highlighter-rouge">, **{}</code> at call sites which need it for Ruby 2.7 would be acceptable, I’m not sure.</p>
+
+<h3 id="the--operator">The … operator</h3>
+
+<p>The new <code class="highlighter-rouge">...</code> operator of Ruby 2.7 passes all arguments (positional, keywords, block):</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>This works in Ruby 2.7 and 3+, but it’s a <code class="highlighter-rouge">SyntaxError</code> in 2.6!
+So we’d need something like this if we still want to run on 2.6:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">all_args</span> <span class="o">=</span> <span class="no">RUBY_VERSION</span> <span class="o">&lt;</span> <span class="s2">"2.7"</span> <span class="p">?</span> <span class="s2">"*args, &amp;block"</span> <span class="p">:</span> <span class="s2">"..."</span>
+
+<span class="nb">class_eval</span> <span class="o">&lt;&lt;</span><span class="no">RUBY</span><span class="sh">
+def delegate(</span><span class="si">#{</span><span class="n">all_args</span><span class="si">}</span><span class="sh">)
+  target(</span><span class="si">#{</span><span class="n">all_args</span><span class="si">}</span><span class="sh">)
+end
+</span><span class="no">RUBY</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">...</code> currently does not allow any sibling argument (e.g., <code class="highlighter-rouge">def method_missing(meth, ...)</code>), which makes it unusable in those situations. Probably we should make it work in those situations too, otherwise it’s quite limited.
+That is something that seems worth arguing for on <a href="https://bugs.ruby-lang.org/issues/16253">this ticket</a>.</p>
+
+<h3 id="pass_keywords">pass_keywords</h3>
+
+<p><code class="highlighter-rouge">pass_keywords</code> is a simple mechanism that basically simulates <code class="highlighter-rouge">...</code> in a syntax-compatible way:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">pass_keywords</span><span class="p">(</span><span class="o">*</span><span class="p">);</span> <span class="k">end</span> <span class="k">unless</span> <span class="nb">respond_to?</span><span class="p">(</span><span class="ss">:pass_keywords</span><span class="p">,</span> <span class="kp">true</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="no">RUBY_VERSION</span> <span class="o">&lt;</span> <span class="s2">"3"</span>
+  <span class="n">pass_keywords</span> <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">else</span>
+  <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>It works by forwarding keyword arguments passed to <code class="highlighter-rouge">delegate</code> as keyword arguments to <code class="highlighter-rouge">target</code>.
+That only applies for call sites using <code class="highlighter-rouge">*args</code> in <code class="highlighter-rouge">pass_keywords</code> methods, so it’s simple to understand.</p>
+
+<p>We could also easily make it work for blocks inside that method (the same goes for <code class="highlighter-rouge">...</code>).
+That’s actually more useful than it sounds, and allows “saving” a delegated call and trigger it later:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pass_keywords</span> <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="vi">@call_later</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="p">{</span> <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span> <span class="p">}</span>
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="nf">call</span>
+  <span class="vi">@call_later</span><span class="p">.</span><span class="nf">call</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">pass_keywords</code> is enough to make the delegation in <code class="highlighter-rouge">ActionDispatch::MiddlewareStack::Middleware</code>
+(a rather complicated case) work and requires <a href="https://github.com/eregon/rails/commit/8b0625ed68">rather few changes</a>.</p>
+
+<p>We could also keep <code class="highlighter-rouge">pass_keywords</code> in Ruby 3+, although I think it would be preferable to use more idiomatic ways for delegation in Ruby 3 and later (either <code class="highlighter-rouge">def delegate(*args, **kwargs, &amp;block)</code> or <code class="highlighter-rouge">def delegate(...)</code>).</p>
+
+<h3 id="ruby2_keywords">ruby2_keywords</h3>
+
+<p><code class="highlighter-rouge">ruby2_keywords</code> is a method introduced in Ruby 2.7 that alters
+how a method taking a <code class="highlighter-rouge">*rest</code> parameter behaves. Specifically, if keyword arguments are
+passed to such a method, they are remembered by flagging the Hash. When a flagged Hash
+is passed at <em>any</em> call site using a <code class="highlighter-rouge">*rest</code> argument (and no keyword arguments), then
+that flagged Hash is converted back to keyword arguments.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">ruby2_keywords</span><span class="p">(</span><span class="o">*</span><span class="p">);</span> <span class="k">end</span> <span class="k">unless</span> <span class="nb">respond_to?</span><span class="p">(</span><span class="ss">:ruby2_keywords</span><span class="p">,</span> <span class="kp">true</span><span class="p">)</span>
+<span class="c1"># Or use the 'ruby2_keywords' gem:</span>
+<span class="nb">require</span> <span class="s1">'ruby2_keywords'</span>
+
+<span class="n">ruby2_keywords</span> <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<span class="k">end</span>
+
+<span class="n">delegate</span><span class="p">({})</span> <span class="c1"># =&gt; [{}]</span>
+</code></pre></div></div>
+
+<p>Here is how <code class="highlighter-rouge">ActionDispatch::MiddlewareStack::Middleware</code> <a href="https://github.com/eregon/rails/commit/44a80647f5">looks like with <code class="highlighter-rouge">ruby2_keywords</code></a>.</p>
+
+<p>This works fine on Ruby 2.6 (<code class="highlighter-rouge">ruby2_keywords</code> is defined as no-op) and 2.7.
+However, what should happen for Ruby 3?
+Should we even have a method called <code class="highlighter-rouge">ruby2_keywords</code> in Ruby 3?</p>
+
+<p>The current idea seems to keep <code class="highlighter-rouge">ruby2_keywords</code> until at least Ruby 2 is end-of-life,
+let’s say in Ruby 3.X.
+That means however code using <code class="highlighter-rouge">ruby2_keywords</code> will break at that date, unless
+the code also includes a version check and uses the Ruby 3-style delegation:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">require</span> <span class="s1">'ruby2_keywords'</span>
+
+<span class="k">if</span> <span class="no">RUBY_VERSION</span> <span class="o">&lt;</span> <span class="s2">"3"</span>
+  <span class="n">ruby2_keywords</span> <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">else</span>
+  <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>This is becoming not so pretty, but I think is a good path forward.
+Using this, code will not break in the foreseeable future, and the <code class="highlighter-rouge">ruby2_keywords</code>
+workaround is only used on Ruby 2.7, which is the only version needing such a complicated workaround.
+Also, we use the Ruby 3-style delegation in Ruby 3 which is rather natural, and not some workaround with complicated semantics.
+The Ruby 2 branch can be removed as soon as Ruby 2 support is dropped for that code.</p>
+
+<p>However, it seems most MRI committers think it’s fine to migrate your code to the version just using
+<code class="highlighter-rouge">ruby2_keywords</code> and then ask you again when Ruby 3.X comes out to change the code again to use Ruby 3-style delegation, or <code class="highlighter-rouge">...</code>.
+I’m not comfortable with the idea of telling people to change their code, <strong>knowing it will break in Ruby 3.X</strong>,
+and this is part of the reason why I am writing this blog post.</p>
+
+<p>I don’t think keeping <code class="highlighter-rouge">ruby2_keywords</code> forever is any good either, I think it doesn’t make sense to have a method named <code class="highlighter-rouge">ruby2_keywords</code> in e.g., Ruby 4. We could maybe rename it, but I have other concerns.</p>
+
+<p>I dislike <code class="highlighter-rouge">ruby2_keywords</code> because it introduces hidden state (a hidden flag on a <code class="highlighter-rouge">Hash</code>).
+Do you know which other construct uses hidden state in Ruby? The flip-flop operator is an example.
+Hidden state is almost always a sign of bad design for programming languages, it always comes back and bites you by having surprising semantics and non-trivial performance implications.
+Practically, it means that <code class="highlighter-rouge">ruby2_keywords</code> might flag a <code class="highlighter-rouge">Hash</code> and when it’s used in a different file at a call site very far away it could magically be passed as keyword arguments even though it’s syntactically passed as a positional argument (e.g., <code class="highlighter-rouge">foo(*args)</code>). Have fun debugging that.</p>
+
+<p>Also, it slows down every single call site using a <code class="highlighter-rouge">*rest</code> argument, not just the one in the <code class="highlighter-rouge">delegate</code> method.
+Because of that I consider it a hack, which seems acceptable if only used in Ruby 2.7, but seems like we’d shoot ourselves in the foot to keep it any longer, both for making migration more difficult when removing it, and for suffering lower performance for all <code class="highlighter-rouge">foo(*args)</code> calls until then.
+<a href="https://bugs.ruby-lang.org/issues/16188">This issue</a> has more details about performance implications of <code class="highlighter-rouge">ruby2_keywords</code> and Ruby 3 keyword arguments.</p>
+
+<p>Finally, <code class="highlighter-rouge">ruby2_keywords</code> introduces magic conversion of positional arguments to keyword arguments.
+Is it not ironic that we work on separating positional and keyword argument but then introduce <code class="highlighter-rouge">ruby2_keywords</code> which brings back automatic conversation, i.e., potentially breaks the separation?</p>
+
+<p>So let’s keep thinking.</p>
+
+<h3 id="ruby2_keywords--send_keyword_hash">ruby2_keywords + send_keyword_hash</h3>
+
+<p>This is a variant of <code class="highlighter-rouge">ruby2_keywords</code> above but it makes it explicit which call site can convert a flagged Hash to keyword arguments. <code class="highlighter-rouge">send_keyword_hash</code> is then just <code class="highlighter-rouge">send</code> with the additional conversion of a flagged Hash to keyword arguments.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">require</span> <span class="s1">'ruby2_keywords'</span>
+<span class="c1"># Could be defined by the ruby2_keywords gem too</span>
+<span class="kp">alias_method</span> <span class="ss">:send_keyword_hash</span><span class="p">,</span> <span class="ss">:__send__</span> <span class="k">unless</span> <span class="nb">respond_to?</span><span class="p">(</span><span class="ss">:send_keyword_hash</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="no">RUBY_VERSION</span> <span class="o">&lt;</span> <span class="s2">"3"</span>
+  <span class="n">ruby2_keywords</span> <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">send_keyword_hash</span><span class="p">(</span><span class="ss">:target</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">else</span>
+  <span class="k">def</span> <span class="nf">delegate</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>This still has hidden state by flagging a keyword Hash passed to a <code class="highlighter-rouge">ruby2_keywords</code> method,
+but at least it’s explicit where the conversion can occur and where the flag has any effect.
+By making it explicit where such a conversion can happen with <code class="highlighter-rouge">send_keyword_hash</code>, it’s both clearer for semantics (easier to debug) and it removes the performance concern by letting other call sites using a <code class="highlighter-rouge">*rest</code> argument behave unchanged.
+Also, with <code class="highlighter-rouge">send_keyword_hash</code>, there is no more magic conversion of positional to keyword arguments, so the separation remains clean with no backdoor.</p>
+
+<p>Here is how <code class="highlighter-rouge">ActionDispatch::MiddlewareStack::Middleware</code> <a href="https://github.com/eregon/rails/commit/b5fd497a58">looks like with <code class="highlighter-rouge">ruby2_keywords + send_keyword_hash</code></a>.</p>
+
+<h2 id="what-should-we-do">What Should We Do?</h2>
+
+<p>Here are a few questions for the Ruby community and for the reader:</p>
+
+<ul>
+  <li>Do you like any of these approaches?</li>
+  <li>Is there a better approach that would work but wasn’t considered?</li>
+  <li>Do you think it’s OK to break code/having to change code <em>again</em> in Ruby 3.X by just recommending to use <code class="highlighter-rouge">ruby2_keywords</code> with no version check? It seems to be what MRI committers are thinking currently.</li>
+  <li>Until when should we keep <code class="highlighter-rouge">ruby2_keywords</code> (if at all)?</li>
+  <li>What do you think of the hidden state, magic conversion at any <code class="highlighter-rouge">foo(*args)</code> call site and hard-to-debug concerns about <code class="highlighter-rouge">ruby2_keywords</code>?</li>
+  <li>What delegation style would you use once Ruby 2 support is dropped? <code class="highlighter-rouge">def delegate(*args, **kwargs, &amp;block)</code>, <code class="highlighter-rouge">def delegate(...)</code>, <code class="highlighter-rouge">pass_keywords</code>?</li>
+</ul>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2020/01/13/a-migration-path-to-bundler2.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2019/10/07/a-new-should-syntax.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

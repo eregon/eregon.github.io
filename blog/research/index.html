@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Research &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/research/">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Research" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A blog about Ruby, Performance and Concurrency" />
+<meta property="og:description" content="A blog about Ruby, Performance and Concurrency" />
+<link rel="canonical" href="https://eregon.me/blog/research/" />
+<meta property="og:url" content="https://eregon.me/blog/research/" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<script type="application/ld+json">
+{"description":"A blog about Ruby, Performance and Concurrency","headline":"Research","@type":"WebPage","url":"https://eregon.me/blog/research/","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="/blog/assets/@hpcc-js/wasm@0.3.6/dist/index.min.js"></script>
+<script src="https://unpkg.com/d3-graphviz@3.0.0/build/d3-graphviz.js"></script>
+
+<style>
+#graph {
+  font-family: "PT Sans", Helvetica, Arial, sans-serif;
+}
+</style>
+
+<script>
+//@ts-check
+'use strict';
+
+function extractConcepts(p, paper, concepts) {
+  if (!paper.entryTags['vm:concepts']) {
+    return;
+  }
+
+  const cs = paper.entryTags['vm:concepts'].split(',');
+  for (const c of cs) {
+    if (c.trim().length > 0) {
+      const concept = {
+        id: getConceptId(c),
+        name: c.trim()
+      };
+
+      concepts[concept.id] = concept;
+      if (!p.concepts) {
+        p.concepts = [];
+      }
+      p.concepts.push(concept);
+
+      if (!p.edges) {
+        p.edges = [];
+      }
+      p.edges.push({
+        type: 'concept',
+        target: concept.id,
+        label: null
+      });
+    }
+  }
+}
+
+function extractEdges(p, paper) {
+  for (const key of Object.keys(paper.entryTags)) {
+    if (key.startsWith('vm:edge:')) {
+      const edgeName = key.replace('vm:edge:', '');
+      const edges = paper.entryTags[key].split(';');
+
+      for (const e of edges) {
+        const trimmed = e.trim();
+        const idxFirstSpace = trimmed.indexOf(' ');
+        const targetId = idxFirstSpace === -1 ? trimmed : trimmed.substr(0, idxFirstSpace);
+        let label = idxFirstSpace === -1 ? null : trimmed.substr(idxFirstSpace).trim();
+        if (label && label.length == 0) {
+          label = null;
+        }
+
+        if (!p.edges) {
+          p.edges = [];
+        }
+        p.edges.push({
+          type: edgeName,
+          target: targetId,
+          label: label
+        });
+      }
+    }
+  }
+}
+
+function getPapersAndConcepts(entries) {
+  const papers = [];
+  const concepts = {};
+
+  for (const paper of entries) {
+    if (paper.entryType === "COMMENT") {
+      continue;
+    }
+
+    if (paper.entryType === "concept") {
+      let concept = concepts[paper.citationKey];
+      if (!concept) {
+        concept = {
+          id: getConceptId(paper.citationKey),
+          name: paper.citationKey.trim()
+        };
+        concepts[paper.citationKey] = concept;
+      }
+
+      const name = paper.entryTags['vm:shortTitle'];
+      if (name && name.trim()) {
+        concept.name = name.trim();
+      }
+
+      extractConcepts(concept, paper, concepts);
+      continue;
+    }
+
+    const p = {
+      id: paper.citationKey,
+      shortTitle: paper.entryTags['vm:shortTitle'],
+      venue: paper.entryTags.series,
+      title: paper.entryTags.title,
+      url: paper.entryTags.url,
+      year: paper.entryTags.year,
+      authors: paper.entryTags.author,
+    };
+
+    // check completeness
+    for (const [key, value] of Object.entries(p)) {
+      if (!value) {
+        console.warn(`${paper.citationKey} misses ${key}`);
+      }
+    }
+
+    extractConcepts(p, paper, concepts);
+    extractEdges(p, paper);
+
+    papers.push(p);
+  }
+  return {papers, concepts};
+}
+
+function getConceptId(str) {
+  return str.trim().replace(/\s/g,'');
+}
+
+function renderConcepts(concepts) {
+  let result = '';
+  for (const c of Object.values(concepts)) {
+    result += `
+      "${c.id}" [
+        label = "${c.name}",
+        shape = "oval"
+      ]
+    `;
+  }
+  return result;
+}
+
+function renderPapers(papers) {
+  let result = '';
+  for (const paper of papers) {
+    const graphizEscapedUrl = paper.url.replace(/&(?!amp;)/gm, '&amp;');
+    result += `
+      "${paper.id}" [
+        label = "${paper.shortTitle} (${paper.venue})",
+        tooltip = "${paper.title}",
+        URL = "${graphizEscapedUrl}",
+        fontcolor = "${paper.authors.includes("Daloze") ? '#4a9ae1' : 'black'}"
+      ]
+    `;
+  }
+
+  return result;
+}
+
+function renderEdges(papers) {
+  const edgeTypes = {
+    'default': 'solid',
+    'concept': 'dotted',
+    'extends': 'solid',
+    'uses':    'dashed'
+  };
+
+  const conceptEdges = new Map();
+  const nonConceptEdges = new Map();
+
+  for (const paper of papers) {
+    if (!paper.edges) {
+      continue;
+    }
+
+    for (const edge of paper.edges) {
+      let style = edgeTypes[edge.type];
+      if (!style) {
+        style = edgeTypes['default'];
+      }
+
+      let label = '';
+      if (edge.label) {
+        label = `label = "${edge.label}",`
+      }
+
+      const edgeViz = `
+        "${edge.target}" -> "${paper.id}" [
+          ${label}
+          style = "${style}"
+        ]\n`;
+
+
+      const edgeId = `${edge.target}" -> "${paper.id}"`;
+      if (edge.type === 'concept') {
+        if (conceptEdges.has(edgeId)) {
+          console.log(`Redundant edge: ${edgeId}`);
+        }
+        conceptEdges.set(edgeId, edgeViz);
+      } else {
+        if (!nonConceptEdges.has(edgeId)) {
+          nonConceptEdges.set(edgeId, []);
+        }
+        nonConceptEdges.get(edgeId).push(edgeViz);
+      }
+    }
+  }
+
+  let result = '';
+  for (const edgeList of nonConceptEdges.values()) {
+    for (const edgeViz of edgeList) {
+      result += edgeViz;
+    }
+  }
+  for (const [edgeId, edgeViz] of conceptEdges.entries()) {
+    // Avoid drawing a redundant edge based on concept relationship
+    if (!nonConceptEdges.has(edgeId)) {
+      result += edgeViz;
+    }
+  }
+  return result;
+}
+
+function renderToDot(papers, concepts) {
+  let result = `digraph G {
+    graph [fontname = "helvetica"];
+    edge [fontname = "helvetica"];
+    node [shape = "box", fontname="helvetica"]`;
+
+  result += renderConcepts(concepts);
+  result += renderPapers(papers);
+
+  const edges = Object.values(concepts).concat(papers);
+  result += renderEdges(edges);
+
+  result += '}';
+  return result;
+}
+
+function convertToDot(json) {
+  // const entries = bibtexParse.toJSON(bibtex);
+  // console.log(entries);
+  const entries = JSON.parse(json);
+  const {papers, concepts} = getPapersAndConcepts(entries);
+  return renderToDot(papers, concepts);
+}
+
+const jsonUrl = '/blog/assets/research/vm-graph-data.json?v=1';
+
+const dataPromise = fetch(jsonUrl)
+  .then((response) => {
+    return response.text();
+  });
+
+window.onload = function() {
+  var graphviz = d3.select("#graph").graphviz()
+      .logEvents(true)
+      .on("initEnd", triggerRender);
+
+  let triggerRenderResolve;
+  const triggerRenderP = new Promise(function(resolve, reject) {
+    triggerRenderResolve = resolve;
+  });
+
+  function triggerRender() {
+    triggerRenderResolve();
+  }
+
+  Promise.all([dataPromise, triggerRenderP]).then(function(values) {
+    const dot = convertToDot(values[0]);
+    const graphElem = document.getElementById('graph');
+    const maxWidth = graphElem.clientWidth * 1.3;
+    graphviz
+      .fit(true)
+      .width(maxWidth)
+      .height(0.45 * maxWidth)
+      .renderDot(dot);
+  });
+}
+</script>
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      
+<h1 id="research">Research</h1>
+
+<h2 id="research-interests">Research Interests</h2>
+
+<ul>
+  <li><strong>Concurrency in dynamically-typed programming languages</strong></li>
+  <li>Optimizations for dynamically-typed languages</li>
+  <li>Virtual Machines</li>
+</ul>
+
+<h2 id="projects">Projects</h2>
+
+<ul>
+  <li><a href="https://github.com/oracle/truffleruby">TruffleRuby</a>, a high performance implementation of the Ruby programming language on top of Truffle and Graal.</li>
+  <li><a href="https://github.com/eregon/mozart-graal">Mozart-Graal</a>, an implementation of the Oz programming language on top of Truffle and Graal.</li>
+</ul>
+
+<h2 id="phd-thesis">PhD Thesis</h2>
+
+<ul>
+  <li>B. Daloze.
+<a href="/blog/assets/research/thesis-thread-safe-data-representations-in-dynamic-languages.pdf"><em>Thread-Safe and Efficient Data Representations in Dynamically-Typed Languages</em></a>.
+Johannes Kepler University Linz, Austria, 2019.
+<a href="/blog/assets/research/thesis-slides.pdf">Slides</a>.
+    <blockquote>
+      <p>An approach to shared-memory parallelism to make objects and built-in collections of dynamically-typed languages thread-safe, efficient and scalable.</p>
+    </blockquote>
+  </li>
+</ul>
+
+<h2 id="publications">Publications</h2>
+
+<p>Most of these papers are also listed in the <a href="https://rubybib.org/">Ruby Bibliography</a>.</p>
+
+<ul>
+  <li>B. Daloze, A. Tal, S. Marr, H. Mössenböck, E. Petrank.
+<a href="/blog/assets/research/thread-safe-collections.pdf"><em>Parallelization of Dynamic Languages: Synchronizing Built-in Collections</em></a>.
+In Proceedings of the 2018 Conference on Object-Oriented Programming, Systems, Languages, and Applications (OOPSLA), Boston, United States, November 7-9, 2018.
+<a href="/blog/assets/research/thread-safe-collections-supplement.pdf">Supplementary Material</a>.
+    <blockquote>
+      <p>A method for making built-in collections thread-safe by default with no single-threaded overhead and allowing scalability.</p>
+    </blockquote>
+  </li>
+  <li>K. Menard, C. Seaton, B. Daloze.
+<a href="/blog/assets/research/specializing-ropes-for-ruby.pdf"><em>Specializing Ropes for Ruby</em></a>.
+In Proceedings of the 15th Conference on Managed Languages &amp; Runtimes (ManLang), Linz, Austria, September 12-13, 2018.
+    <blockquote>
+      <p>Using the rope data structure for the mutable Strings of the Ruby programming language, adding encoding information and new rope operations.</p>
+    </blockquote>
+  </li>
+  <li>S. Marr, B. Daloze.
+<a href="/blog/assets/research/few-versatile-vs-many-specialized-collections.pdf"><em>Few Versatile vs. Many Specialized Collections - How to design a collection library for exploratory programming?</em></a>
+In Proceedings of the 4th Edition of the Programming Experience Workshop (PX/18), Nice, France, April 9-12, 2018.
+    <blockquote>
+      <p>A study of the design of collection libraries in 14 languages and how it influences programmer productivity.</p>
+    </blockquote>
+  </li>
+  <li>B. Daloze, S. Marr, D. Bonetta, H. Mössenböck.
+<a href="/blog/assets/research/thread-safe-objects.pdf"><em>Efficient and Thread-Safe Objects for Dynamically-Typed Languages</em></a>.
+In Proceedings of the 2016 Conference on Object-Oriented Programming, Systems, Languages, and Applications (OOPSLA), Amsterdam, Netherlands, November 2-4, 2016.
+    <blockquote>
+      <p>A thread-safe object model for objects to which fields can be added or removed dynamically (such as in JavaScript, Ruby, Python, etc).</p>
+    </blockquote>
+  </li>
+  <li>S. Marr, B. Daloze, H. Mössenböck.
+<a href="/blog/assets/research/cross-language-compiler-benchmarking.pdf"><em>Cross-Language Compiler Benchmarking - Are We Fast Yet?</em></a>
+In Proceedings of the 12th Dynamic Languages Symposium (DLS), Amsterdam, Netherlands, November 1, 2016.
+    <blockquote>
+      <p>A benchmark suite composed of 14 benchmarks, in 6 managed programming languages to compare compiler effectiveness.</p>
+    </blockquote>
+  </li>
+  <li>B. Daloze, C. Seaton, D. Bonetta, H. Mössenböck.
+<a href="/blog/assets/research/guest-language-safepoints.pdf"><em>Techniques and Applications for Guest-Language Safepoints</em></a>
+In Proceedings of the 10th Workshop on Implementation, Compilation, Optimization of Object-Oriented Languages, Programs and Systems (ICOOOLPS), Prague, Czech Republic, July 6, 2015.
+    <blockquote>
+      <p>A mechanism enabling powerful features like interrupting all threads to execute arbitrary code at zero cost on normal execution.</p>
+    </blockquote>
+  </li>
+  <li>B. Daloze.
+<a href="/blog/assets/research/mozart-2-multicore.pdf"><em>Extending Mozart 2 to Support Multicore Processors</em></a>.
+Master thesis, Université Catholique de Louvain, Belgium, 2014.
+    <blockquote>
+      <p>Extension of the new implementation of Oz, Mozart 2, to allow multiple virtual machines to run in parallel in a single operating system process.</p>
+    </blockquote>
+  </li>
+</ul>
+
+<h2 id="related-papers-research-graph">Related Papers Research Graph</h2>
+
+<div id="graph" style="text-align: center;"></div>
+
+<p>Also see a more extensive Virtual Machine Research Graph <a href="https://eregon.me/virtual-machines-research-graph/">here</a>.</p>
+
+<h2 id="activities">Activities</h2>
+
+<ul>
+  <li>Member of the Program Committee of <a href="https://conf.researchr.org/track/ecoop-issta-2018/ICOOOLPS-2018-papers">ICOOOLPS 2018</a>.</li>
+</ul>
+
+<h2 id="other-activities">Other Activities</h2>
+
+<ul>
+  <li>Committer of <a href="https://github.com/ruby/ruby">CRuby (aka MRI)</a>: the reference implementation of Ruby.</li>
+  <li>Maintainer of <a href="https://github.com/ruby/spec">ruby/spec</a>: the standard executable specification of the Ruby programming language.</li>
+</ul>
+
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

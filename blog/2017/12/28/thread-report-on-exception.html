@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Finding Thread errors early with Thread.report_on_exception &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2017/12/28/thread-report-on-exception.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Finding Thread errors early with Thread.report_on_exception" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Ruby 2.4 introduced Thread.report_on_exception to print exceptions to $stderr when a Thread dies from an exception. However, it was disabled by default. In Ruby 2.5, I made Thread.report_on_exception enabled by default. This significantly improves debugging multithreaded programs in Ruby." />
+<meta property="og:description" content="Ruby 2.4 introduced Thread.report_on_exception to print exceptions to $stderr when a Thread dies from an exception. However, it was disabled by default. In Ruby 2.5, I made Thread.report_on_exception enabled by default. This significantly improves debugging multithreaded programs in Ruby." />
+<link rel="canonical" href="https://eregon.me/blog/2017/12/28/thread-report-on-exception.html" />
+<meta property="og:url" content="https://eregon.me/blog/2017/12/28/thread-report-on-exception.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-12-28T00:00:00+01:00" />
+<script type="application/ld+json">
+{"description":"Ruby 2.4 introduced Thread.report_on_exception to print exceptions to $stderr when a Thread dies from an exception. However, it was disabled by default. In Ruby 2.5, I made Thread.report_on_exception enabled by default. This significantly improves debugging multithreaded programs in Ruby.","headline":"Finding Thread errors early with Thread.report_on_exception","dateModified":"2017-12-28T00:00:00+01:00","datePublished":"2017-12-28T00:00:00+01:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2017/12/28/thread-report-on-exception.html"},"url":"https://eregon.me/blog/2017/12/28/thread-report-on-exception.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2017-12-28 00:00:00 +0100">December 28, 2017</time>
+    
+  </div>
+
+  <h1 class="post-title">Finding Thread errors early with Thread.report_on_exception</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>Ruby 2.4 introduced <code class="highlighter-rouge">Thread.report_on_exception</code> to print exceptions to <code class="highlighter-rouge">$stderr</code> when a Thread dies from an exception.
+However, it was disabled by default.
+In Ruby 2.5, I made <code class="highlighter-rouge">Thread.report_on_exception</code> <a href="https://bugs.ruby-lang.org/issues/14143">enabled by default</a>.
+This significantly improves debugging multithreaded programs in Ruby.</p>
+
+<h2 id="the-problem-statement">The problem statement</h2>
+
+<p>When a Thread dies from an exception in Ruby 2.4 or earlier, nothing happens.
+The exception is silently swallowed by the Thread’s death.
+The only way other threads can know about this is by using <code class="highlighter-rouge">Thread#join</code> or
+<code class="highlighter-rouge">Thread#value</code>.
+But in many cases, other threads might be blocked before calling <code class="highlighter-rouge">Thread#join</code> or <code class="highlighter-rouge">#value</code> and result in a deadlock or livelock, with no information to debug.</p>
+
+<p>So let’s take a simple example:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><table class="rouge-table"><tbody><tr><td class="gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+</pre></td><td class="code"><pre><span class="n">queue</span> <span class="o">=</span> <span class="no">Queue</span><span class="p">.</span><span class="nf">new</span>
+<span class="n">thread</span> <span class="o">=</span> <span class="no">Thread</span><span class="p">.</span><span class="nf">new</span> <span class="p">{</span>
+  <span class="n">queue</span><span class="p">.</span><span class="nf">push</span> <span class="s2">"abc"</span><span class="p">.</span><span class="nf">starts_with?</span><span class="p">(</span><span class="s2">"foo"</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="nb">p</span> <span class="n">queue</span><span class="p">.</span><span class="nf">pop</span>
+<span class="n">thread</span><span class="p">.</span><span class="nf">join</span></pre></td></tr></tbody></table></code></pre></figure>
+
+<p>Running it on Ruby 2.4 gives:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">thread1.rb:5:in `pop': No live threads left. Deadlock? (fatal)
+1 threads, 1 sleeps current:0x555d14c656a0 main thread:0x555d148f05e0
+* #&lt;Thread:0x555d14925ec0 sleep_forever&gt;
+   rb_thread_t:0x555d148f05e0 native:0x7fc7376eb700 int:0
+   thread1.rb:5:in `pop'
+   thread1.rb:5:in `&lt;main&gt;'
+	from thread1.rb:5:in `&lt;main&gt;'</code></pre></figure>
+
+<p>Did not expected that?
+That’s the pretty deadlock output in Ruby 2.4+.
+But unfortunately it doesn’t point to the problem, it only tells us that the main Thread is stuck on line 5 in <code class="highlighter-rouge">queue.pop</code>.
+Yet, we have a <code class="highlighter-rouge">queue.push</code>, so why did it not work?</p>
+
+<p>Let’s run with Ruby 2.5:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#&lt;Thread:0x55b966a87a80@thread1.rb:2 run&gt; terminated with exception (report_on_exception is true):
+thread1.rb:3:in `block in &lt;main&gt;': undefined method `starts_with?' for "abc":String (NoMethodError)
+Did you mean?  start_with?
+
+thread1.rb:5:in `pop': No live threads left. Deadlock? (fatal)
+1 threads, 1 sleeps current:0x55b9667e3120 main thread:0x55b966709430
+* #&lt;Thread:0x55b96673cd08 sleep_forever&gt;
+   rb_thread_t:0x55b966709430 native:0x7f9250b56700 int:0
+   thread1.rb:5:in `pop'
+   thread1.rb:5:in `&lt;main&gt;'
+	from thread1.rb:5:in `&lt;main&gt;'</code></pre></figure>
+
+<p>The first part is what <code class="highlighter-rouge">Thread.report_on_exception</code> does: print the exception that killed the Thread to <code class="highlighter-rouge">$stderr</code>.
+It clearly shows the error is on line 3 and that we have an extra <code class="highlighter-rouge">s</code> in <code class="highlighter-rouge">starts_with?</code>.</p>
+
+<p>Let’s see what happens if we have a second Thread doing some kind of IO:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><table class="rouge-table"><tbody><tr><td class="gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="n">queue</span> <span class="o">=</span> <span class="no">Queue</span><span class="p">.</span><span class="nf">new</span>
+<span class="n">thread</span> <span class="o">=</span> <span class="no">Thread</span><span class="p">.</span><span class="nf">new</span> <span class="p">{</span>
+  <span class="n">queue</span><span class="p">.</span><span class="nf">push</span> <span class="s2">"abc"</span><span class="p">.</span><span class="nf">starts_with?</span><span class="p">(</span><span class="s2">"foo"</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="n">io_thread</span> <span class="o">=</span> <span class="no">Thread</span><span class="p">.</span><span class="nf">new</span> <span class="p">{</span> <span class="no">STDIN</span><span class="p">.</span><span class="nf">gets</span> <span class="p">}</span>
+<span class="nb">p</span> <span class="n">queue</span><span class="p">.</span><span class="nf">pop</span>
+<span class="n">thread</span><span class="p">.</span><span class="nf">join</span></pre></td></tr></tbody></table></code></pre></figure>
+
+<p>On Ruby 2.4, it hangs.
+When interrupting with <code class="highlighter-rouge">Ctrl+C</code> the output is:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">^Cthread2.rb:6:in `pop': Interrupt
+	from thread2.rb:6:in `&lt;main&gt;'</code></pre></figure>
+
+<p>No helpful output at all here: we only know the <code class="highlighter-rouge">pop</code> is blocking.
+This is no longer a deadlock from Ruby’s point of view, because Ruby cannot know if external events like IO might finish, or if the <code class="highlighter-rouge">io_thread</code> might push an object to the <code class="highlighter-rouge">queue</code>.</p>
+
+<p>On Ruby 2.5, this is printed as soon as the thread dies:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">#&lt;Thread:0x5612dbd2f778@thread2.rb:2 run&gt; terminated with exception (report_on_exception is true):
+thread2.rb:3:in `block in &lt;main&gt;': undefined method `starts_with?' for "abc":String (NoMethodError)
+Did you mean?  start_with?</code></pre></figure>
+
+<p>Now we can clearly see and quickly identify the problem.</p>
+
+<p>You might have noticed the bug since the first code snippet in this simple example.
+Yet, a similar problem can happen for every bug or exception raised in some Thread different than the main Thread.</p>
+
+<h2 id="threadabort_on_exception">Thread.abort_on_exception</h2>
+
+<p>So how did Ruby programmers debug their multithreaded programs before?
+They had to remember to always add the magic incantation <code class="highlighter-rouge">Thread.abort_on_exception = true</code> before creating any Thread.
+This is unfortunately very easy to forget (I did many times), and if forgotten this can waste hours of debugging.</p>
+
+<p>When an exception kills a Thread and <code class="highlighter-rouge">Thread.abort_on_exception</code> is <code class="highlighter-rouge">true</code>, the exception is re-raised in the main Thread.</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><table class="rouge-table"><tbody><tr><td class="gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+</pre></td><td class="code"><pre><span class="no">Thread</span><span class="p">.</span><span class="nf">abort_on_exception</span> <span class="o">=</span> <span class="kp">true</span>
+<span class="n">queue</span> <span class="o">=</span> <span class="no">Queue</span><span class="p">.</span><span class="nf">new</span>
+<span class="n">thread</span> <span class="o">=</span> <span class="no">Thread</span><span class="p">.</span><span class="nf">new</span> <span class="p">{</span>
+  <span class="n">queue</span><span class="p">.</span><span class="nf">push</span> <span class="s2">"abc"</span><span class="p">.</span><span class="nf">starts_with?</span><span class="p">(</span><span class="s2">"foo"</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="nb">p</span> <span class="n">queue</span><span class="p">.</span><span class="nf">pop</span>
+<span class="n">thread</span><span class="p">.</span><span class="nf">join</span></pre></td></tr></tbody></table></code></pre></figure>
+
+<p>On Ruby 2.4:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text">thread3.rb:4:in `block in &lt;main&gt;': undefined method `starts_with?' for "abc":String (NoMethodError)
+Did you mean?  start_with?</code></pre></figure>
+
+<p>This points clearly to the problem.
+However, this raises the exception in the main Thread, likely causing it to end its execution.
+Good for debugging, bad for a larger application, where we might not want to end the program if one of many Threads dies unexpectedly.</p>
+
+<p><code class="highlighter-rouge">Thread.report_on_exception</code> is more gentle by only printing the backtrace to <code class="highlighter-rouge">$stderr</code>, and most importantly is now enabled by default.</p>
+
+<h2 id="intended-exceptions-in-threads">Intended exceptions in threads</h2>
+
+<p>Sometimes, the extra output by <code class="highlighter-rouge">Thread.report_on_exception</code> is undesirable,
+for instance if exceptions raised in a Thread are intended.
+This notably happens in tests.
+I fixed around <a href="https://github.com/ruby/ruby/commit/15689ed7780b06ddc14cde4f427de834177283a5">35 tests</a> in MRI’s test suite.
+Similarly, around <a href="https://github.com/ruby/spec/pull/517/commits/a238a179afe2db653531e6e3beae84cc97d21b38">21 specs</a> were fixed in ruby/spec.
+The most common type of change in tests is moving the <code class="highlighter-rouge">assert</code>s in the Thread.
+Original:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">test_thread_local_freeze</span>
+  <span class="n">assert_raise</span><span class="p">(</span><span class="no">FrozenError</span><span class="p">)</span> <span class="k">do</span>
+    <span class="no">Thread</span><span class="p">.</span><span class="nf">new</span> <span class="k">do</span>
+      <span class="no">Thread</span><span class="p">.</span><span class="nf">current</span><span class="p">[</span><span class="ss">:foo</span><span class="p">]</span> <span class="o">=</span> <span class="ss">:bar</span>
+      <span class="no">Thread</span><span class="p">.</span><span class="nf">current</span><span class="p">.</span><span class="nf">freeze</span>
+      <span class="no">Thread</span><span class="p">.</span><span class="nf">current</span><span class="p">[</span><span class="ss">:foo</span><span class="p">]</span> <span class="o">=</span> <span class="ss">:baz</span>
+    <span class="k">end</span><span class="p">.</span><span class="nf">join</span>
+  <span class="k">end</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>Better and avoiding extra <code class="highlighter-rouge">Thread.report_on_exception</code> output:</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">test_thread_local_freeze</span>
+  <span class="no">Thread</span><span class="p">.</span><span class="nf">new</span> <span class="k">do</span>
+    <span class="no">Thread</span><span class="p">.</span><span class="nf">current</span><span class="p">[</span><span class="ss">:foo</span><span class="p">]</span> <span class="o">=</span> <span class="ss">:bar</span>
+    <span class="no">Thread</span><span class="p">.</span><span class="nf">current</span><span class="p">.</span><span class="nf">freeze</span>
+    <span class="n">assert_raise</span><span class="p">(</span><span class="no">FrozenError</span><span class="p">)</span> <span class="k">do</span>
+      <span class="no">Thread</span><span class="p">.</span><span class="nf">current</span><span class="p">[</span><span class="ss">:foo</span><span class="p">]</span> <span class="o">=</span> <span class="ss">:baz</span>
+    <span class="k">end</span>
+  <span class="k">end</span><span class="p">.</span><span class="nf">join</span>
+<span class="k">end</span></code></pre></figure>
+
+<p>This has the added bonus to reduce the scope where the intended exception should be raised (<code class="highlighter-rouge">FrozenError</code> is quite specific here, but it was <code class="highlighter-rouge">RuntimeError</code> in 2.4 which could be many different kinds of errors, not just a frozen object error).</p>
+
+<p>There are other ways to avoid the extra output by <code class="highlighter-rouge">report_on_exception</code>.
+Quoting from the <a href="http://ruby-doc.org/core-2.5.0/Thread.html#method-c-report_on_exception">documentation of Thread.report_on_exception</a>:</p>
+
+<ul>
+  <li>
+    <p>If the exception is not intended, the best is to fix the cause of the exception so it does not happen anymore.</p>
+  </li>
+  <li>
+    <p>If the exception is intended, it is likely better to <code class="highlighter-rouge">rescue</code> it closer to where it is raised rather then let it kill the Thread.</p>
+  </li>
+  <li>
+    <p>If it is guaranteed the Thread will be joined with <code class="highlighter-rouge">#join</code> or <code class="highlighter-rouge">#value</code>, then it is safe to disable this report with <code class="highlighter-rouge">Thread.current.report_on_exception = false</code> when starting the Thread. However, this might handle the exception much later, or not at all if the Thread is never joined due to the parent thread being blocked, etc (see the <a href="#the-problem-statement">examples</a> at the beginning of the blog post).</p>
+  </li>
+</ul>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>The <a href="https://bugs.ruby-lang.org/issues/6647">initial feature request</a> was done by <a href="https://github.com/headius">@headius</a> and based on what Java does (reporting exceptions in threads by default).
+It took more than <a href="https://bugs.ruby-lang.org/issues/6647">5 years</a> to convince matz and other MRI developers this is a feature worth having, to implement it, and to enable it by default.
+So, sometimes, keeping arguing for a feature you believe in actually works.
+A <a href="https://bugs.ruby-lang.org/issues/14171">bug</a> was found in DRb thanks to this feature and there is a growing number of <code class="highlighter-rouge">report_on_exception</code> output in CI, giving better clues about what goes wrong in tests.
+Here is my piece for a better programming experience with threads for Ruby 2.5.</p>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2018/02/11/trick-sudoku.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2016/11/28/optcarrot.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

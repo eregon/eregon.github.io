@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      A New Expectation Syntax for ruby/spec &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2019/10/07/a-new-should-syntax.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="A New Expectation Syntax for ruby/spec" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="ruby/spec is a test suite for the behavior of the Ruby programming language. The utility to run the test suite is called MSpec and is very similar to RSpec 2." />
+<meta property="og:description" content="ruby/spec is a test suite for the behavior of the Ruby programming language. The utility to run the test suite is called MSpec and is very similar to RSpec 2." />
+<link rel="canonical" href="https://eregon.me/blog/2019/10/07/a-new-should-syntax.html" />
+<meta property="og:url" content="https://eregon.me/blog/2019/10/07/a-new-should-syntax.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-10-07T00:00:00+02:00" />
+<script type="application/ld+json">
+{"description":"ruby/spec is a test suite for the behavior of the Ruby programming language. The utility to run the test suite is called MSpec and is very similar to RSpec 2.","headline":"A New Expectation Syntax for ruby/spec","dateModified":"2019-10-07T00:00:00+02:00","datePublished":"2019-10-07T00:00:00+02:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2019/10/07/a-new-should-syntax.html"},"url":"https://eregon.me/blog/2019/10/07/a-new-should-syntax.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2019-10-07 00:00:00 +0200">October 07, 2019</time>
+    
+  </div>
+
+  <h1 class="post-title">A New Expectation Syntax for ruby/spec</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p><a href="https://github.com/ruby/spec">ruby/spec</a> is a test suite for the behavior of the Ruby programming language.
+The utility to run the test suite is called <a href="https://github.com/ruby/mspec">MSpec</a> and is very similar to RSpec 2.</p>
+
+<p>The reason to have its own runner and not simply using RSpec is that MSpec is significantly simpler than RSpec 2.
+For example, it does not <code class="highlighter-rouge">require</code> any standard library.
+Early-stage Ruby implementations typically do not support the entire standard library, but based on the simplicity of MSpec they are still able to run language and core library specs with minimal efforts.</p>
+
+<p>MSpec also provides a few features that RSpec does or did not have such as
+automatically tagging/untagging failing specs, various guards useful for ruby/spec, etc.</p>
+
+<h2 id="existing-syntax-in-rspec-2-and-rspec-3">Existing Syntax in RSpec 2 and RSpec 3</h2>
+
+<p>MSpec uses a syntax very similar to RSpec 2:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">describe</span> <span class="s2">"String#start_with?"</span> <span class="k">do</span>
+  <span class="n">it</span> <span class="s2">"returns true only if beginning match"</span> <span class="k">do</span>
+    <span class="s2">"hello"</span><span class="p">.</span><span class="nf">start_with?</span><span class="p">(</span><span class="s1">'hel'</span><span class="p">).</span><span class="nf">should</span> <span class="o">==</span> <span class="kp">true</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>This contrasts to the RSpec 3 style:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="no">RSpec</span><span class="p">.</span><span class="nf">describe</span> <span class="s2">"String#start_with?"</span> <span class="k">do</span>
+  <span class="n">it</span> <span class="s2">"returns true only if beginning match"</span> <span class="k">do</span>
+    <span class="n">expect</span><span class="p">(</span><span class="s2">"hello"</span><span class="p">.</span><span class="nf">start_with?</span><span class="p">(</span><span class="s1">'hel'</span><span class="p">)).</span><span class="nf">to</span> <span class="n">eq</span> <span class="kp">true</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>I don’t particularly like the RSpec 3 style:</p>
+
+<ul>
+  <li>It’s more verbose and needs two method calls instead of one (not counting the matcher)</li>
+  <li>It needs extra parentheses which add visual clutter</li>
+  <li>It’s harder to switch between regular code and specs because some sort of manual code translation is always required (i.e., it’s not just adding <code class="highlighter-rouge">.should</code>)</li>
+</ul>
+
+<p>These reasons are why I am mostly happy with the existing RSpec 2 style in ruby/spec.</p>
+
+<p>Using <code class="highlighter-rouge">expect</code> has of course advantages too, notably when using delegation,
+as explained in the <a href="https://rspec.info/blog/2012/06/rspecs-new-expectation-syntax/">original blog post about <code class="highlighter-rouge">expect</code></a>.</p>
+
+<h2 id="the-various-equality-methods">The Various Equality Methods</h2>
+
+<p>One aspect discussed in that blog post is that <code class="highlighter-rouge">should ==</code> generates Ruby warnings.
+This used to indeed be annoying.
+However in Ruby 2.4+ it’s easy to automatically filter out these warnings by overriding <code class="highlighter-rouge">Warning.warn</code>, which MSpec does.</p>
+
+<p>When I compare <code class="highlighter-rouge">actual.should eq(expected)</code> to <code class="highlighter-rouge">actual.should == expected</code>, I strongly prefer the latter, because it is much closer to normal Ruby code which would just test <code class="highlighter-rouge">actual == expected</code>.
+There are also various equality methods in Ruby: <code class="highlighter-rouge">==</code>, <code class="highlighter-rouge">eql?</code> and <code class="highlighter-rouge">equal?</code>.
+I’d like to not have to remember any kind of mapping between regular code and specs; I’d like to use the exact same method names in specs.
+Continuing on that idea, I’m not such a huge fan of having so many matchers in MSpec to do very basic tests I could do more simply in Ruby code. Here are a few matchers from MSpec:
+<code class="highlighter-rouge">==</code>, <code class="highlighter-rouge">eql</code>, <code class="highlighter-rouge">equal</code>, <code class="highlighter-rouge">=~</code>, <code class="highlighter-rouge">&lt;=</code>, <code class="highlighter-rouge">include</code>, <code class="highlighter-rouge">be_true</code>, <code class="highlighter-rouge">be_false</code>, <code class="highlighter-rouge">be_empty</code>, <code class="highlighter-rouge">be_nan</code>, <code class="highlighter-rouge">be_an_instance_of</code>, <code class="highlighter-rouge">be_kind_of</code>, <code class="highlighter-rouge">be_ancestor_of</code>, <code class="highlighter-rouge">respond_to</code>, <code class="highlighter-rouge">have_instance_method</code>,  …</p>
+
+<p>So many already, and there are many more!
+And of course, there will always be some missing matchers, for instance there is no matcher for <code class="highlighter-rouge">String#start_with?</code>.
+Contrary to RSpec, there are no magic <code class="highlighter-rouge">be_.../have_...</code> matchers in MSpec.</p>
+
+<h2 id="the-new-simple-and-consistent-syntax">The New Simple and Consistent Syntax</h2>
+
+<p>Could we do without having to remember all these mappings and just use normal predicates in Ruby code? That’s what I wanted to try with this new syntax in MSpec:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">describe</span> <span class="s2">"String#start_with?"</span> <span class="k">do</span>
+  <span class="n">it</span> <span class="s2">"returns true only if beginning match"</span> <span class="k">do</span>
+    <span class="s2">"hello"</span><span class="p">.</span><span class="nf">should</span><span class="p">.</span><span class="nf">start_with?</span><span class="p">(</span><span class="s1">'hel'</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>The idea is: add <code class="highlighter-rouge">.should</code> just before the predicate you expect to be truthy, and done!
+And this works for any method, because we can implement this through <code class="highlighter-rouge">#method_missing</code>.
+This syntax is not new, it was actually already used for <code class="highlighter-rouge">should ==</code>, but now it can be used for any predicate:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span><span class="p">).</span><span class="nf">should</span> <span class="o">==</span> <span class="mi">3</span>
+<span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span><span class="p">).</span><span class="nf">should_not</span> <span class="o">==</span> <span class="mi">4</span>
+<span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span><span class="p">).</span><span class="nf">should</span> <span class="o">!=</span> <span class="mi">4</span>
+<span class="mi">1</span><span class="p">.</span><span class="nf">should</span> <span class="o">&lt;</span> <span class="mi">2</span>
+<span class="s2">"abc"</span><span class="p">.</span><span class="nf">should</span> <span class="o">=~</span> <span class="sr">/b/</span>
+<span class="mi">4</span><span class="p">.</span><span class="nf">should</span><span class="p">.</span><span class="nf">eql?</span> <span class="mf">4.0</span>
+<span class="nb">self</span><span class="p">.</span><span class="nf">should</span><span class="p">.</span><span class="nf">equal?</span><span class="p">(</span><span class="nb">self</span><span class="p">)</span>
+<span class="s2">"end"</span><span class="p">.</span><span class="nf">should</span><span class="p">.</span><span class="nf">end_with?</span><span class="p">(</span><span class="s2">"d"</span><span class="p">)</span>
+<span class="p">[].</span><span class="nf">should</span><span class="p">.</span><span class="nf">empty?</span>
+<span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="mi">3</span><span class="p">).</span><span class="nf">should</span><span class="p">.</span><span class="nf">include?</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="no">File</span><span class="p">.</span><span class="nf">should</span><span class="p">.</span><span class="nf">exist?</span><span class="p">(</span><span class="s2">"README.txt"</span><span class="p">)</span>
+<span class="p">(</span><span class="mi">1</span><span class="o">..</span><span class="mi">5</span><span class="p">).</span><span class="nf">step</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="nf">should</span><span class="p">.</span><span class="nf">all?</span> <span class="p">{</span> <span class="o">|</span><span class="n">e</span><span class="o">|</span> <span class="n">e</span><span class="p">.</span><span class="nf">odd?</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<p>I think some of these look really nice, some do not read as nicely, but overall they are all consistent and extremely simple to learn.</p>
+
+<p>The simplicity of removing <code class="highlighter-rouge">.should</code> to go from specs to regular code is very useful for debugging purposes. Having a minimal amount of self-contained code to reproduce an issue is often key to understand and fix a bug.</p>
+
+<p>A significant advantage of this approach is that all matchers have a similar output for errors, and provide a lot of information if they fail.</p>
+
+<p>With the old syntax (<code class="highlighter-rouge">s.start_with?('b').should == true</code>), the error wouldn’t be very helpful and one would need to look at the test code to get an idea of what went wrong:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>String#start_with? returns true only if beginning match FAILED
+Expected false to equal true
+</code></pre></div></div>
+
+<p>With the new syntax (<code class="highlighter-rouge">s.should.start_with?('b')</code>), we get to see the receiver and arguments, no matter what predicate is used, and it’s immediately clear which expectation failed:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>String#start_with? returns true only if beginning match FAILED
+Expected "a".start_with? "b"
+to be truthy but was false
+</code></pre></div></div>
+
+<p>And it’s all consistent, so once we learn the formatting of just one error, we know it for all other errors.</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Expected 1 == 2
+to be truthy but was false
+
+Expected [1, 3].include? 2
+to be truthy but was false
+</code></pre></div></div>
+
+<p>Previously, the message and formatting would differ for every matcher:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Expected 1 to equal 2
+
+Expected [1, 3] to include 2
+</code></pre></div></div>
+
+<p>I no longer need to reverse map <code class="highlighter-rouge">equal</code> to <code class="highlighter-rouge">==</code> (how confusing!) and <code class="highlighter-rouge">include</code> to <code class="highlighter-rouge">include?</code>, it just shows me the method which was called and returned something unexpected.</p>
+
+<h2 id="expected-actual-to-equal-expected">Expected Actual to Equal Expected</h2>
+
+<p>Moreover <code class="highlighter-rouge">actual</code> and <code class="highlighter-rouge">expected</code> are often unclear in many test framework outputs, such as <code class="highlighter-rouge">Expected ACTUAL to equal EXPECTED</code> above.
+Some test-unit frameworks even disagree on which should be first for <code class="highlighter-rouge">assert_equal</code>.
+We no longer need a notion of <code class="highlighter-rouge">actual</code> and <code class="highlighter-rouge">expected</code> values in the new syntax, we always expect a whole predicate to be truthy or falsy, and that’s it. There is no question of order, it’s plain Ruby code and we can see <code class="highlighter-rouge">==</code> was called on the left receiver value, with the right value(s) as the argument(s).</p>
+
+<p>Of course, this new syntax is not the answer to everything.
+For instance, it does not address the fact we need a different syntax for exceptions (and mocks).
+We could extend the new syntax to deal with exceptions as going through <code class="highlighter-rouge">method_missing</code> gives a lot of control, but I did not find a nice syntax for that yet.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>The existing RSpec 2-like syntax will still remain available in MSpec,
+for compatibility and because migrating ruby/spec would be a very large amount of work.
+I also don’t want to force anyone to use the new syntax.
+I started using the new syntax in a few specs where I found it to be a clear gain,
+<a href="https://github.com/ruby/spec/commit/a3c52de2cf5858ae452feddb4fd77c9f69e2f6c8">such as for <code class="highlighter-rouge">start_with?</code> specs</a>.
+The most frequent matcher, <code class="highlighter-rouge">should ==</code>, already uses the new error output,
+because that matcher uses the same syntax in the new syntax and
+therefore the new implementation is used.
+As a fun fact, the implementation of the new syntax actually
+<a href="https://github.com/ruby/mspec/commit/bc841cc0a4">removes more lines than it adds</a>.</p>
+
+<p>In this blog post I presented a new expectation syntax for ruby/spec.
+The main advantages are:</p>
+<ul>
+  <li>Consistent and simple (“add <code class="highlighter-rouge">.should</code> before the predicate”) and therefore easy to learn</li>
+  <li>Very similar to regular code, so going from plain Ruby code to specs or back is trivial</li>
+  <li>No extra mapping between predicates and matchers, matchers are just Ruby predicates</li>
+  <li>Clear output when an expectation fails, showing the relevant values that caused the error</li>
+</ul>
+
+<p>What do you think? Is this new syntax a good or a bad idea?</p>
+
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2019/11/10/the-delegation-challenge-of-ruby27.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2019/04/24/how-truffleruby-startup-became-faster-than-mri.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

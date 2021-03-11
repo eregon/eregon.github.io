@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      The Fundamental Flaws of fork() which Corrupt Your State &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2023/02/12/fork-flaws.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="The Fundamental Flaws of fork() which Corrupt Your State" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="fork(2) is a well-known system call on POSIX systems. However it has two major flaws:" />
+<meta property="og:description" content="fork(2) is a well-known system call on POSIX systems. However it has two major flaws:" />
+<link rel="canonical" href="https://eregon.me/blog/2023/02/12/fork-flaws.html" />
+<meta property="og:url" content="https://eregon.me/blog/2023/02/12/fork-flaws.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:image" content="https://eregon.me/blog/assets/benchmarks-2022/banner.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2023-02-12T00:00:00+01:00" />
+<script type="application/ld+json">
+{"description":"fork(2) is a well-known system call on POSIX systems. However it has two major flaws:","headline":"The Fundamental Flaws of fork() which Corrupt Your State","dateModified":"2023-02-12T00:00:00+01:00","datePublished":"2023-02-12T00:00:00+01:00","image":"https://eregon.me/blog/assets/benchmarks-2022/banner.png","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2023/02/12/fork-flaws.html"},"url":"https://eregon.me/blog/2023/02/12/fork-flaws.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2023-02-12 00:00:00 +0100">February 12, 2023</time>
+    
+  </div>
+
+  <h1 class="post-title">The Fundamental Flaws of fork() which Corrupt Your State</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p><code class="highlighter-rouge">fork(2)</code> is a well-known system call on POSIX systems.
+However it has two major flaws:</p>
+
+<ol>
+  <li>It only copies the thread calling <code class="highlighter-rouge">fork()</code>, all other threads are dead in the child process.</li>
+  <li>Resources which are unsafe to be shared like some file descriptors are shared with fork.</li>
+</ol>
+
+<h2 id="only-copying-the-calling-thread">Only Copying the Calling Thread</h2>
+
+<p>So why does <code class="highlighter-rouge">fork()</code> only copies the calling thread and not all threads?
+It is a very good question actually.
+Both approaches have trade-offs as noted in <a href="https://stackoverflow.com/a/42034914/388803">this stack overflow answer</a>:</p>
+<ul>
+  <li>If copying only the calling thread, any state used by those other threads such as locked mutexes are unusable in the child process. The child process is begging for a deadlock or inconsistent state as soon as it uses some state which was accessed used by other threads. The other threads are not made aware of the fork, they can do very little about it <sup id="fnref:1"><a href="#fn:1" class="footnote">1</a></sup>.</li>
+  <li>If copying all threads, you would have those copied threads access resources in parallel to the corresponding parent process’s thread, and they cannot synchronize via a in-process mutex of course. But that problem already exist with copying a single thread, that runs in parallel to the parent thread, so it’s nothing new.</li>
+</ul>
+
+<p>It’s unclear why POSIX or the designers of <code class="highlighter-rouge">fork()</code> chose the first, it seems clearly the worse trade-off of the two. Maybe at that time threads were uncommon and people thought it was easier to say “forks and threads are incompatible, do not use both”, even though that is what many programs do nowadays.
+As a result, a forked process is a partial, broken, corrupted, deadlocked copy of the parent process, unless the calling process only had a single thread.
+There is of course no chance to change <code class="highlighter-rouge">fork()</code> for compatibility reasons. It would be interesting if a fork that copies all threads became available, AFAIK there is no such functionality currently available (although since <a href="https://en.wikipedia.org/wiki/CRIU">CRIU</a> can restore threads on Linux it should be possible).</p>
+
+<h2 id="unsafe-resources-shared-by-fork">Unsafe Resources Shared by Fork</h2>
+
+<p>This problem is relatively well known by users of fork() and yet it is incredibly easy to corrupt your program if you do not manually unshare just one of these resources which is not safe to be shared.
+This is even more confusing that these resources are not considered IPC (inter-process communication) resources, but in-process resources. But because of <code class="highlighter-rouge">fork()</code> they are actually shared between processes even though they were not designed for that!</p>
+
+<p>A couple examples:</p>
+<ul>
+  <li>A socket or Unix Domain Socket or pipe, for instance used to communicate with some database or external service. If this is shared between both processes, you can get the response to a DB query of the other process, i.e., your database is now corrupted and you are leaking sensitive data (e.g. it shows the profile of a user to another). This happenned to me once, I thought it was the RAM getting corrupted, but no, it’s “just” a fundamental flaw of fork. The typical “hard way” to learn about fork’s flaws.</li>
+  <li>A file on the filesystem. If you only append to it with single calls to <code class="highlighter-rouge">write(2)</code> like for logging the filesystem/kernel ensures those writes are atomic. But anything else and you are just corrupting that file.</li>
+</ul>
+
+<p>And then there is <a href="https://man7.org/linux/man-pages/man2/fork.2.html">long list</a> of exceptions of resources which are not copied and break the mental model of “it’s just a copy”, some are useful and some are waiting to cause bugs in forks <sup id="fnref:2"><a href="#fn:2" class="footnote">2</a></sup>.</p>
+
+<h2 id="man-page-notes">Man Page Notes</h2>
+
+<p>The <a href="https://man7.org/linux/man-pages/man2/fork.2.html"><code class="highlighter-rouge">fork(2)</code> man page</a> makes the following notes:</p>
+
+<ul>
+  <li>The child process is created with a single thread—the one that called <code class="highlighter-rouge">fork()</code>. The entire virtual address space of the parent is replicated in the child, including the states of mutexes, condition variables, and other pthreads objects; the use of <code class="highlighter-rouge">pthread_atfork(3)</code> may be helpful for dealing with problems that this can cause.</li>
+  <li>After a fork() in a multithreaded program, the child can safely call only async-signal-safe functions (see <code class="highlighter-rouge">signal-safety(7)</code>) until such time as it calls <code class="highlighter-rouge">execve(2)</code>.</li>
+</ul>
+
+<p>As noted <a href="https://stackoverflow.com/a/6605487/388803">here</a> <code class="highlighter-rouge">pthread_atfork(3)</code> cannot actually be used to unlock mutexes like <code class="highlighter-rouge">pthread_mutex</code>. And it is generally difficult to use this “at fork hook” to clean the shared resources, because closing in the parent is suboptimal (e.g. for a database socket it would need an extra reconnection and might break other threads, and closing in the child <em>without</em> using the resource at all (e.g., sending a close-db-connection message on the socket would close the parent too) is often not exposed by libraries because it’s quite hacky). In the Ruby world, Rails does it for databases it knows (but of course not for other connections it does not know about), while Sequel does not and <a href="http://sequel.jeremyevans.net/rdoc/files/doc/fork_safety_rdoc.html">expects you to manually do it</a>. Hopefully you never forget, otherwise corruption awaits you. I find this extremely dangerous and insecure that IMO it is a good enough reason on its own to not use fork.</p>
+
+<p>The second one is quite interesting, it says a fork of a program which had multiple threads is only allowed to call async-signal-safe functions (<a href="https://man7.org/linux/man-pages/man7/signal-safety.7.html">a small set of functions</a>, no non-trivial C program only uses those) until it <code class="highlighter-rouge">execve(2)</code> to execute another program. So the man page says it plainly: <strong>all the multithread programs out there that fork and don’t immediately execve() are unsafe</strong>. That includes all Rails applications using a forking webserver for instance. Note that most Ruby programs use multiple threads, for instance just using <code class="highlighter-rouge">Timeout.timeout</code> or <code class="highlighter-rouge">net/http</code> creates a Thread.</p>
+
+<h2 id="why-does-it-seem-to-work-for-rails-and-forking-webservers">Why does it seem to work for Rails and forking webservers?</h2>
+
+<p>TODO because single thread at time of fork?
+But pitchfork probably does not do that, TODO check it
+Probably Ruby’s fork or system fork(2) should error if not single-threaded.
+fork not really supported on macOS: https://developer.apple.com/forums/thread/701601</p>
+
+<p>TODO good explanation in https://bugs.ruby-lang.org/issues/14009#change-67194</p>
+
+<h2 id="a-concrete-example-which-breaks-in-cruby">A Concrete Example which Breaks in CRuby</h2>
+
+<p>CRuby tried to use <code class="highlighter-rouge">getaddrinfo_a(3)</code> (from GLibC) to solve the fairly well-known problem that <code class="highlighter-rouge">getaddrinfo(3)</code> cannot be interrupted by a signal (until it reaches its timeout typically 30-90 seconds, which feels like a POSIX bug).
+<code class="highlighter-rouge">getaddrinfo_a(3)</code> use at least a thread and a mutex to implement its interruptability.
+Because of that, when forking and <code class="highlighter-rouge">getaddrinfo_a(3)</code> was used in the parent process, in the child process: 1) the thread is dead, 2) the mutex can still be locked, and so DNS resolution via <code class="highlighter-rouge">getaddrinfo_a(3)</code> in the child process is forever stuck or broken (see <a href="https://bugs.ruby-lang.org/issues/19430#Alternative-approaches">this</a> and <a href="https://bugs.ruby-lang.org/issues/17220#change-88025">this</a> for details).</p>
+
+<p>TODO Note the same would happen e.g. with a Ruby Thread using a Mutex, and that Mutex being locked (and not by the current thread) at the time of fork.
+The Timeout stdlib could have this issue for example, and it’s probably difficult to fix, rather it is threading + fork are incompatible.</p>
+
+<h2 id="why-does-the-jvm-not-support-fork">Why does the JVM not support fork?</h2>
+
+<p>A while ago I wondered why the JVM or more specifically the HotSpot JVM does not support forking. One can actually call fork() via FFI but the forked JVM will break very soon after.
+While I don’t know the exact reasons for the original decision, based on the above we can have some ideas.
+The JVM uses extra threads for JIT Compilers, for GC threads, for reference processing, for signal handling, etc. So all JVM processes are multithreaded, even if they do not use multiple Java threads.
+Suspending all these threads in a safe place so they don’t have any lock/resource acquired is incredibly challenging. And then restarting them in the fork and make them continue where they were is also extremely difficult. I think these problems would be much easier to solve if there was a fork that copied all threads.</p>
+
+<p>TODO also because fork not portable e.g. Windows</p>
+
+<p>As a note, it might be possible to implement fork on GraalVM Native Image, which has more control over threads. It is a significant undertaking though as it would need to solve the problems above.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>I think fork() is fundamentally flawed in such a way that it should not be used (unless it’s immediately followed by <code class="highlighter-rouge">execve()</code> but that’s not the case we discuss in this post).
+The fact it can corrupt, deadlock, or break your program or external services with as much as forgetting to deal with one shared resource, and there is no proper general solution to fix that sharing automatically, seems too much a deal breaker to me.</p>
+
+<p>I know many people would disagree though, and I guess their hands are sort of tied because for instance on CRuby the only way to achieve parallelism is multiple processes or forks (I don’t consider Ractors, they have <a href="https://bugs.ruby-lang.org/projects/ruby-master/search?utf8=%E2%9C%93&amp;q=Ractor&amp;scope=&amp;all_words=&amp;all_words=1&amp;titles_only=&amp;issues=1&amp;open_issues=1&amp;attachments=0&amp;options=1&amp;commit=Search">so many bugs</a> and anyway are not compatible enough).
+Forks have the advantage over new processes of avoiding doing the startup again and of sharing a portion of the memory between the forks.
+I do question though: <strong>Are the startup and memory gains worth the potential corruption of your process and leaking sensitive data?</strong>
+Passenger for instance supports <a href="https://www.phusionpassenger.com/library/indepth/ruby/spawn_methods/#the-most-straightforward-and-traditional-way-direct-spawning">creating new processes and not using fork</a>.
+Puma does not currently, but I suspect it would be fairly easy to add.</p>
+
+<p>TODO mention waitall issue in footnote?</p>
+
+<p>The main alternative I see is to use language implementations without a global lock (GVL/GIL).
+For Ruby, that means use TruffleRuby or JRuby.
+Then threads run in parallel, the entire memory is shared, all CPUs can be used efficiently, there is no overhead of inter-process communication and of course no flaws of <code class="highlighter-rouge">fork()</code>.
+That leaves the startup concern, which I believe we can mostly address by <a href="https://www.graalvm.org/latest/graalvm-as-a-platform/language-implementation-framework/AuxiliaryEngineCachingEnterprise/">persisting the JITed code</a> on TruffleRuby.</p>
+
+<div class="footnotes">
+  <ol>
+    <li id="fn:1">
+      <p>Unless the program controls all threads, including threads used by its dependencies and can coordinate them on every fork(), extremely difficult. <a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+    </li>
+    <li id="fn:2">
+      <p>POSIX is full of weird exceptions, one somewhat related is fork() copies signal handlers (expected) but execve() <a href="https://man7.org/linux/man-pages/man7/signal.7.html">does not copy signal handlers <em>except</em> handlers set to <code class="highlighter-rouge">SIG_IGN</code></a>, a good source of bugs which force people to use an empty function instead of <code class="highlighter-rouge">SIG_IGN</code> e.g. for SIGPIPE. <a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2024/10/27/benchmarking-ruby-parsers.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2022/01/06/benchmarking-cruby-mjit-yjit-jruby-truffleruby.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Correct Delegation with Ruby 2.6, 2.7 and 3.0 &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Correct Delegation with Ruby 2.6, 2.7 and 3.0" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="While looking at how a few gems handle delegation on Ruby 2.7, I noticed that many of them are unfortunately incorrect. The official blog post about keyword arguments changes in Ruby 2.7 and Ruby 3.0 is rather long and might be unclear. So I will keep this one really short and to the point." />
+<meta property="og:description" content="While looking at how a few gems handle delegation on Ruby 2.7, I noticed that many of them are unfortunately incorrect. The official blog post about keyword arguments changes in Ruby 2.7 and Ruby 3.0 is rather long and might be unclear. So I will keep this one really short and to the point." />
+<link rel="canonical" href="https://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html" />
+<meta property="og:url" content="https://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-02-13T00:00:00+01:00" />
+<script type="application/ld+json">
+{"description":"While looking at how a few gems handle delegation on Ruby 2.7, I noticed that many of them are unfortunately incorrect. The official blog post about keyword arguments changes in Ruby 2.7 and Ruby 3.0 is rather long and might be unclear. So I will keep this one really short and to the point.","headline":"Correct Delegation with Ruby 2.6, 2.7 and 3.0","dateModified":"2021-02-13T00:00:00+01:00","datePublished":"2021-02-13T00:00:00+01:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html"},"url":"https://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2021-02-13 00:00:00 +0100">February 13, 2021</time>
+    
+  </div>
+
+  <h1 class="post-title">Correct Delegation with Ruby 2.6, 2.7 and 3.0</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>While looking at how a few gems handle delegation on Ruby 2.7, I noticed that many of them are unfortunately incorrect.
+The <a href="https://www.ruby-lang.org/en/news/2019/12/12/separation-of-positional-and-keyword-arguments-in-ruby-3-0/">official blog post</a>
+about keyword arguments changes in Ruby 2.7 and Ruby 3.0 is rather long and might be unclear.
+So I will keep this one really short and to the point.</p>
+
+<p>I am a CRuby committer which discussed and designed the keyword arguments changes along with Jeremy Evans and Yusuke Endoh.</p>
+
+<h2 id="the-only-correct-way">The Only Correct Way</h2>
+
+<p>There is actually just a single way to do delegation that works in Ruby &lt;= 2.6, in Ruby 2.7 and in Ruby &gt;= 3:</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<span class="k">end</span>
+<span class="n">ruby2_keywords</span> <span class="ss">:foo</span> <span class="k">if</span> <span class="nb">respond_to?</span><span class="p">(</span><span class="ss">:ruby2_keywords</span><span class="p">,</span> <span class="kp">true</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>It’s simple: <code class="highlighter-rouge">ruby2_keywords</code> is the only way to achieve correct delegation on Ruby 2.7.
+The approach above is used in <a href="https://github.com/rails/rails/blob/v6.1.0/actionpack/lib/action_dispatch/middleware/stack.rb#L94">Rails</a>, etc.</p>
+
+<p>You can also add the <code class="highlighter-rouge">ruby2_keywords</code> gem to remove the <code class="highlighter-rouge">respond_to?</code> check and be able to use:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ruby2_keywords</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<h2 id="some-frequent-incorrect-ways">Some Frequent Incorrect Ways</h2>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Broken on 2.6 and 2.7</span>
+<span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>is <a href="https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html#ruby-3-style-delegation">incorrect on Ruby 2.6 and on Ruby 2.7</a>.</p>
+
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Broken on Ruby 3+, warns in Ruby 2.7</span>
+<span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>is <a href="https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html#ruby-2-style-delegation">incorrect on Ruby 3.0</a>.</p>
+
+<p>Some try a combination of the above:</p>
+<div class="language-ruby highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Broken on 2.7</span>
+<span class="k">if</span> <span class="no">RUBY_VERSION</span> <span class="o">&lt;</span> <span class="s2">"2.7"</span>
+  <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">else</span>
+  <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+    <span class="n">target</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">block</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>But that’s still <a href="https://eregon.me/blog/2019/11/10/the-delegation-challenge-of-ruby27.html#ruby-3-style-delegation">incorrect on Ruby 2.7</a>
+(like the first example, <code class="highlighter-rouge">foo({})</code> passes no arguments at all).</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Use <code class="highlighter-rouge">ruby2_keywords</code> for delegation, that’s the only correct way, as shown above.</p>
+
+<p>If you maintain some Ruby code or a gem, search for methods delegating (= receiving + passing) keyword arguments with <code class="highlighter-rouge">**</code>,
+like the first and third incorrect patterns.
+Delegation with <code class="highlighter-rouge">**</code> does not work in Ruby 2.6 and 2.7, use <code class="highlighter-rouge">ruby2_keywords</code> + <code class="highlighter-rouge">*args</code> instead.</p>
+
+<p>All methods delegating with <code class="highlighter-rouge">*args</code> should use <code class="highlighter-rouge">ruby2_keywords</code> for Ruby &gt;= 2.7, as long as the target method might have keyword arguments.</p>
+
+<h2 id="post-scriptum">Post Scriptum</h2>
+
+<p>Needing to use <code class="highlighter-rouge">ruby2_keywords</code> explicitly for delegation is unfortunate, I wish there would be a more natural way to express delegation in Ruby 2.7.
+Unfortunately there is not.</p>
+
+<p>I once <a href="https://bugs.ruby-lang.org/issues/16463">proposed</a> to enable <code class="highlighter-rouge">ruby2_keywords</code> by default to preserve compatibility, but this was rejected.
+It would also have provided better warnings for delegation.
+We could have postponed the delegation-related changes in order to migrate delegation code once (<code class="highlighter-rouge">*args</code> -&gt; <code class="highlighter-rouge">*args, **kwargs</code>) and not twice (<code class="highlighter-rouge">*args</code> -&gt; <code class="highlighter-rouge">ruby2_keywords</code> -&gt; <code class="highlighter-rouge">*args, **kwargs</code> / <code class="highlighter-rouge">(...)</code>),
+but matz wanted to make all keyword arguments deprecations at once.</p>
+
+<p>At least now we have Ruby 3.0, so one can more easily find problematic delegation code as it just breaks on Ruby 3.0 if not done correctly.
+Note that keyword argument warnings are disabled by default in Ruby 2.7.2.
+Use <code class="highlighter-rouge">RUBYOPT=-W:deprecated command</code> or <code class="highlighter-rouge">Warning[:deprecated] = true</code> in Ruby code to see them.</p>
+
+<p>There is the <code class="highlighter-rouge">def foo(...); target(...); end</code> syntax but it fails to parse on Ruby &lt;= 2.6,
+and only works with no other arguments at all in Ruby 2.7.0 - 2.7.2,
+therefore it has extremely limited applicability these days and I just ignore it.
+Note that <code class="highlighter-rouge">(arg, ...)</code> might finally get <a href="https://bugs.ruby-lang.org/issues/16378">backported to 2.7.3</a>.
+It might make sense to consider <code class="highlighter-rouge">...</code> when dropping Ruby 2.6 support.</p>
+
+<p>When dropping Ruby 2 support entirely, one can switch to <code class="highlighter-rouge">(*args, **kwargs)</code>-style delegation, as that works correctly on Ruby &gt;= 3.</p>
+
+<p>Another way would be to explicitly not support Ruby 2.7, then the last example with the version check would work.
+It is probably impractical for most gems to do that though.</p>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2021/06/04/review-of-ruby-installers-and-switchers.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2020/06/27/ruby-spec-compatibility-report.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

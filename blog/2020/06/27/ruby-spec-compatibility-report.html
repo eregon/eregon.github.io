@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      The Ruby Spec Suite Compatibility Report &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2020/06/27/ruby-spec-compatibility-report.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="The Ruby Spec Suite Compatibility Report" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Introduction" />
+<meta property="og:description" content="Introduction" />
+<link rel="canonical" href="https://eregon.me/blog/2020/06/27/ruby-spec-compatibility-report.html" />
+<meta property="og:url" content="https://eregon.me/blog/2020/06/27/ruby-spec-compatibility-report.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-06-27T00:00:00+02:00" />
+<script type="application/ld+json">
+{"description":"Introduction","headline":"The Ruby Spec Suite Compatibility Report","dateModified":"2020-06-27T00:00:00+02:00","datePublished":"2020-06-27T00:00:00+02:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2020/06/27/ruby-spec-compatibility-report.html"},"url":"https://eregon.me/blog/2020/06/27/ruby-spec-compatibility-report.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2020-06-27 00:00:00 +0200">June 27, 2020</time>
+    
+  </div>
+
+  <h1 class="post-title">The Ruby Spec Suite Compatibility Report</h1>
+  <div class="post-line"></div>
+
+  
+
+  <h2 id="introduction">Introduction</h2>
+
+<p>For a long time I wanted to show visually the compatibility of Ruby implementations with <a href="https://github.com/ruby/spec">ruby/spec</a>.
+This is not as easy as it sounds.
+First, we would like the same version of ruby/spec for all tested Ruby implementations, but in general each Ruby implementation uses a different version (except when synchronized once a month).
+We would like the same Ruby compatibility version (e.g., 2.6), but some Ruby implementations do not target 2.6 currently.
+And finally the number of specs (that is, of <code class="highlighter-rouge">it</code> examples) on a given platform should be fairly constant, which required a few fixes in ruby/spec.</p>
+
+<p>As a quick recap, <a href="https://github.com/ruby/spec">ruby/spec</a> and <a href="https://github.com/ruby/ruby/tree/master/test/ruby">CRuby tests</a> are the two major test suites for Ruby compatibility.
+ruby/spec has the advantage that each spec example has a description of a specific behavior it tests.
+CRuby tests on the other hand often require to reverse-engineer a test to understand what behavior(s) it intends to test, and they are more coarse-grained.
+In this post I focus on ruby/spec.</p>
+
+<h2 id="approach">Approach</h2>
+
+<p>In this first report I ran the specs on CRuby 2.6.6, <a href="https://github.com/oracle/truffleruby">TruffleRuby</a>, <a href="https://www.jruby.org/">JRuby</a>, <a href="https://opalrb.com/">Opal</a> and <a href="https://www.artichokeruby.org/">Artichoke</a> on Linux.
+I used development versions because I want to use the same specs for all implementations when possible,
+along with the corresponding tags – that is specs marked as failing –
+which are only available from the corresponding repository’s development branch.</p>
+
+<p>The specific development versions and command lines used are shown in <a href="https://gist.github.com/eregon/fc24f74752322d88a9de78c7b0e76284">this gist</a>.
+We use the number of examples that CRuby runs, which is always equal or slightly higher than the number of examples when running on other implementations.</p>
+
+<p>The setup for running specs on Opal and on Artichoke is more complex – due to typically not having access to the real filesystem – so I used the version of ruby/spec that they import, which is older and therefore has less specs.
+Opal currently targets Ruby 2.5 and Artichoke is still an early Ruby implementation.
+They both use an <a href="https://github.com/opal/opal/blob/master/spec/ruby_specs">include list</a> of <a href="https://github.com/artichoke/artichoke/blob/master/spec-runner/enforced-specs.yaml">specs</a> to run, and so might pass more than tested in CI.
+So please consider numbers for those Ruby implementations with a grain of salt.</p>
+
+<p>Below you can see two totals, because some implementations do not support the Ruby C-API:</p>
+<ul>
+  <li>All specs except C-API specs.</li>
+  <li>All specs.</li>
+</ul>
+
+<p>Without further ado, here is the data.</p>
+
+<h2 id="results">Results</h2>
+
+<table style="width: 100%">
+<colgroup>
+<col span="1" style="width: 16%;" />
+<col span="1" style="width: 16%" />
+<col span="1" style="width: 16%" />
+<col span="1" style="width: 16%" />
+<col span="1" style="width: 16%" />
+<col span="1" style="width: 16%" />
+</colgroup>
+<thead>
+<th>Group</th>
+<th style="text-align: center">CRuby</th>
+<th style="text-align: center">TruffleRuby</th>
+<th style="text-align: center">JRuby</th>
+<th style="text-align: center">Opal</th>
+<th style="text-align: center">Artichoke</th>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/ruby/spec/tree/master/command_line">Command-line</a><br />
+
+          141 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="87.94326241134752, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">87.94%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="73.75886524822694, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">73.76%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ruby/spec/tree/master/language">Language</a><br />
+
+          2367 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="97.84537389100126, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">97.85%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="97.16941275876637, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">97.17%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="69.83523447401775, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">69.84%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ruby/spec/tree/master/core">Core Library</a><br />
+
+          20841 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="96.80437598963582, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">96.80%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="93.61355021352142, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">93.61%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="42.934600067175275, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">42.93%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="6.5591862194712345, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">6.56%</text>
+    </svg>
+</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ruby/spec/tree/master/library">Standard Library</a><br />
+
+          6891 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="97.62008416775504, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">97.62%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="85.96720359889711, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">85.97%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="7.255840951966333, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">7.26%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="4.745319982585982, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">4.75%</text>
+    </svg>
+</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ruby/spec/tree/master/security">Security</a><br />
+
+          40 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="92.5, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">92.50%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+</tr>
+<tr style="border-top: 2px solid black">
+<td><b>TOTAL without C-API specs</b><br />
+
+          30280 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+<span style="font-size: 95%">30280 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="97.0343461030383, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">97.03%</text>
+    </svg>
+<span style="font-size: 95%">29382 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="92.05746367239101, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">92.06%</text>
+    </svg>
+<span style="font-size: 95%">27875 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="36.66116248348745, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">36.66%</text>
+    </svg>
+<span style="font-size: 95%">11101 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="5.594451783355351, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">5.59%</text>
+    </svg>
+<span style="font-size: 95%">1694 passing</span>
+</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ruby/spec/tree/master/optional/capi">C-API</a><br />
+
+          1325 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="97.35849056603773, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">97.36%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="0.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">0.00%</text>
+    </svg>
+</td>
+</tr>
+<tr style="border-top: 2px solid black">
+<td><b>TOTAL</b><br />
+
+          31605 specs</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="100.0, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">100%</text>
+    </svg>
+<span style="font-size: 95%">31605 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="97.04793545325107, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">97.05%</text>
+    </svg>
+<span style="font-size: 95%">30672 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="88.19806992564467, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">88.20%</text>
+    </svg>
+<span style="font-size: 95%">27875 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="35.12418921056795, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">35.12%</text>
+    </svg>
+<span style="font-size: 95%">11101 passing</span>
+</td>
+<td style="text-align: center">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path class="circle-bg" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <path class="circle" stroke-dasharray="5.359911406423034, 100" d="M18 2.0845
+          a 15.9155 15.9155 0 0 1 0 31.831
+          a 15.9155 15.9155 0 0 1 0 -31.831" />
+      <text x="18" y="20.35" class="percentage">5.36%</text>
+    </svg>
+<span style="font-size: 95%">1694 passing</span>
+</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="interpretation">Interpretation</h2>
+
+<p>The interpretation that follows is mine, and I tried to keep it as neutral and factual as possible.
+I apologize if there is any inaccuracy or subjective opinion: let me know, I am happy to update the blog post based on justified comments.</p>
+
+<p>As expected, CRuby passes all specs.
+This is by design, ruby/spec only includes specs that pass on CRuby since it is the standard implementation.
+There is a rare exception for specs specifying the correct behavior for known bugs in CRuby (<code class="highlighter-rouge">ruby_bug</code> in MSpec) which we can ignore here (there are only 3 <code class="highlighter-rouge">ruby_bug</code> specs currently in ruby/spec).</p>
+
+<p>We see that TruffleRuby passes 97% of all specs which is quite impressive.
+To be fair, TruffleRuby focuses more on ruby/spec than on CRuby tests for the advantages mentioned above.</p>
+
+<p>Next, we have JRuby passing 88% or 92% of all specs, depending on whether you count C-API specs.
+That’s impressive as well, notably with high scores on language and core specs.
+It is worth noting JRuby is currently working on finishing Ruby 2.6 support.</p>
+
+<p>Then we have Opal, which passes a sizable number of language, core and library specs.
+Opal is compiling to JavaScript, so unlike JRuby and TruffleRuby it does not aim to implement lower-level system functionality. Opal is also typically run in browsers and not on the command line, so Opal does not run command-line specs.</p>
+
+<p>Finally, Artichoke, a fairly new Ruby implementation, passes some core and library specs.
+Based on MRuby, which implements a subset of Ruby, it still has a long way to achieve compatibility with CRuby.
+Update (February 2021): Artichoke now passes an estimated 22% of core library specs when trying to run all core specs with <a href="https://github.com/artichoke/artichoke/pull/1088">this PR</a>, however those are not run in CI and might regress.</p>
+
+<p>Note that specs from ruby/spec are not necessarily representative of general compatibility
+with the entire Ruby ecosystem, even though they are obviously related.
+For instance, there might be far more spec examples on a given method than usages in Ruby gems, or the opposite.
+There are Ruby semantics that are not yet covered in ruby/spec: it is an ongoing effort to improve coverage by the way of contributions to ruby/spec from Ruby implementations and from external contributors.
+In general, when an alternative implementation has a bug report,
+they either ensure there is already a spec or add one so over time the ruby/spec coverage improves.</p>
+
+<p>I took a look at CRuby tests for more context and there are in total 20587 CRuby tests when run on CRuby 2.6.6 locally.
+TruffleRuby <a href="https://github.com/oracle/truffleruby/commit/63ac8611de88ba57befa9f8224b4c71980d0b6ce">currently</a> runs and passes 10467 CRuby tests in CI.
+JRuby <a href="https://travis-ci.org/github/jruby/jruby/builds/702890075">currently</a> runs and passes 8133 CRuby tests in CI.
+Opal and Artichoke do not seem to run CRuby tests currently.
+So it seems clear alternative Ruby implementations focus more on ruby/spec,
+but also that there are still a lot more CRuby tests they could run.
+Some CRuby tests are however CRuby-specific and not applicable for any other Ruby implementation.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>I am looking forward to Ruby implementations improving their compatibility and
+passing a higher percentage of ruby/spec. I plan to make such a report again when that happens.</p>
+
+<h3 id="other-ruby-implementations">Other Ruby Implementations</h3>
+
+<p>I would like to report on other Ruby implementations but currently it seems difficult.</p>
+
+<ul>
+  <li>Rubinius 5.0 <a href="https://github.com/rubinius/rubinius/issues/3832">fails to compile</a> on my machine.
+I have noticed similar issues on various Ubuntu versions too.
+I used <code class="highlighter-rouge">ruby-build</code> and installed the <code class="highlighter-rouge">clang llvm-devel</code> packages.</li>
+  <li>MRuby 2.1.1 (as installed by <code class="highlighter-rouge">ruby-install</code>) does not support <code class="highlighter-rouge">$:</code> and <code class="highlighter-rouge">require</code> and so cannot run the regular MSpec harness. Also, <a href="https://github.com/mruby/mruby">mruby/mruby</a> does not seem to run ruby/spec as part of its CI.</li>
+</ul>
+
+<p>Any help to run ruby/spec on these implementations with the <code class="highlighter-rouge">stats</code> formatter or a compatible output is welcome.
+The <a href="https://github.com/ruby/mspec/blob/master/lib/mspec/runner/formatters/stats.rb"><code class="highlighter-rouge">stats</code> formatter</a> has a very simple format, it’s a Hash of spec files to number of passing examples as a YAML file:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>---
+language/some_spec.rb:
+  :examples: 10
+  :errors: 1
+  :failures: 2
+  :tagged: 3
+</code></pre></div></div>
+
+<h3 id="acknowledgments">Acknowledgments</h3>
+
+<p>I used the technique from this <a href="https://medium.com/@pppped/how-to-code-a-responsive-circular-percentage-chart-with-svg-and-css-3632f8cd7705">blog post</a> to draw the percentage charts.</p>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2020/01/13/a-migration-path-to-bundler2.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

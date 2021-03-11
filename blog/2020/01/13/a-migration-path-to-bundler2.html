@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      A Migration Path to Bundler 2+ &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2020/01/13/a-migration-path-to-bundler2.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="A Migration Path to Bundler 2+" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Bundler 2 did not arrive quietly. It was noticed by almost every CI build failing when running bundle install. As a result, it seems many still avoid Bundler 2 and just use Bundler 1. In this post, I present some ideas on how to get more people to use Bundler 2, and no longer need Bundler 1 which will not be maintained forever." />
+<meta property="og:description" content="Bundler 2 did not arrive quietly. It was noticed by almost every CI build failing when running bundle install. As a result, it seems many still avoid Bundler 2 and just use Bundler 1. In this post, I present some ideas on how to get more people to use Bundler 2, and no longer need Bundler 1 which will not be maintained forever." />
+<link rel="canonical" href="https://eregon.me/blog/2020/01/13/a-migration-path-to-bundler2.html" />
+<meta property="og:url" content="https://eregon.me/blog/2020/01/13/a-migration-path-to-bundler2.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-01-13T00:00:00+01:00" />
+<script type="application/ld+json">
+{"description":"Bundler 2 did not arrive quietly. It was noticed by almost every CI build failing when running bundle install. As a result, it seems many still avoid Bundler 2 and just use Bundler 1. In this post, I present some ideas on how to get more people to use Bundler 2, and no longer need Bundler 1 which will not be maintained forever.","headline":"A Migration Path to Bundler 2+","dateModified":"2020-01-13T00:00:00+01:00","datePublished":"2020-01-13T00:00:00+01:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2020/01/13/a-migration-path-to-bundler2.html"},"url":"https://eregon.me/blog/2020/01/13/a-migration-path-to-bundler2.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2020-01-13 00:00:00 +0100">January 13, 2020</time>
+    
+  </div>
+
+  <h1 class="post-title">A Migration Path to Bundler 2+</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>Bundler 2 did not arrive quietly.
+It was noticed by almost every CI build failing when running <code class="highlighter-rouge">bundle install</code>.
+As a result, it seems many still avoid Bundler 2 and just use Bundler 1.
+In this post, I present some ideas on how to get more people to use Bundler 2,
+and no longer need Bundler 1 which will not be maintained forever.</p>
+
+<h2 id="the-rubygems-requirement-of-bundler-2">The RubyGems Requirement of Bundler 2</h2>
+
+<p>The original release of Bundler 2, which is version 2.0.0, <a href="https://bundler.io/blog/2019/01/03/announcing-bundler-2.html">required such a
+recent RubyGems version</a>
+that none of the released Ruby versions had a recent enough RubyGems version shipped with them.
+Bundler 2 also requires Ruby 2.3+, and finally drops support for Ruby 1.8.</p>
+
+<p>This RubyGems version requirement was quickly found as problematic, and as a result Bundler 2.0.1 was released
+to lower the RubyGems version requirement to RubyGems 2.5.
+All versions of Ruby supported by Bundler 2 (that is, Ruby 2.3+) ship with RubyGems 2.5 or newer, but the <a href="https://bundler.io/blog/2019/01/04/an-update-on-the-bundler-2-release.html">blog post</a> did not make this clear.</p>
+
+<p>This resulted in a lot of confusion. Most repositories ended up explicitly
+updating RubyGems in CI to make Bundler 2.0.0 work, as mentioned in the original blog post.</p>
+
+<p>To summarize, <strong>it is not needed to update RubyGems to use Bundler 2.0.1+</strong>.</p>
+
+<p>In fact, I would even argue against updating RubyGems in CI because:</p>
+<ul>
+  <li>It makes the CI slower.</li>
+  <li>It makes the CI less reliable by frequently changing the RubyGems version used.</li>
+  <li>It uses the latest RubyGems instead of the well known version bundled with that Ruby version.</li>
+</ul>
+
+<h2 id="bundler-version-autoswitching">Bundler Version Autoswitching</h2>
+
+<p>Bundler 2 came with another feature, which to say the least is very confusing.
+This feature is actually implemented directly in RubyGems and it unfortunately included a bug,
+which led to even <a href="https://bundler.io/blog/2019/05/14/solutions-for-cant-find-gem-bundler-with-executable-bundle.html">more confusion</a>.</p>
+
+<p>Supposing you have both Bundler 1.17.2 and Bundler 2.0.2 installed, what should this print?</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ bundle --version
+</code></pre></div></div>
+
+<p>For every other gem, the answer would be the latest version of the gem installed, so in this case 2.0.2.</p>
+
+<p>The actual answer though, due to Bundler version autoswitching is “it depends on many things”.
+Specifically, if the current directory or any parent directory has a <code class="highlighter-rouge">Gemfile.lock</code> file with a <code class="highlighter-rouge">BUNDLED WITH</code> section,
+then that exact version, or the closest version with the same major version (depending on the RubyGems version), will be used. If such a version is not available, it fails with <code class="highlighter-rouge">Could not find 'bundler' (&lt;VERSION&gt;)</code> (e.g., when only Bundler 2 is installed with a <code class="highlighter-rouge">Gemfile.lock</code> <code class="highlighter-rouge">BUNDLED WITH 1.17.2</code>).</p>
+
+<p>Otherwise, if there is no <code class="highlighter-rouge">Gemfile.lock</code> in the current directory or any parent directory, <code class="highlighter-rouge">bundle</code> behaves like a normal gem and uses the latest version.</p>
+
+<p>As an example, this feature means that as long as there is a <code class="highlighter-rouge">Gemfile.lock</code> <code class="highlighter-rouge">BUNDLED WITH 1.x</code>,
+even if Bundler 2 is installed, Bundler 1 would be used, or the error above would be shown.</p>
+
+<p>I think this “feature” is so confusing that it should be considered a bug.
+It’s counter-intuitive and prevents using Bundler 2 on <code class="highlighter-rouge">Gemfile.lock</code> <code class="highlighter-rouge">BUNDLED WITH 1.x</code>.</p>
+
+<h2 id="the-migration-problem">The Migration Problem</h2>
+
+<p>The problem I see with all this is I think very few people use Bundler 2, and rather they just keep using Bundler 1.
+I tried to estimate how often Bundler 2 is used by various means:</p>
+<ul>
+  <li>I made a <a href="https://twitter.com/eregontp/status/1188046284919332864">poll</a> on Twitter but that got rather few responses, with rather surprising results.</li>
+  <li>Some usage statistics from RubyGems.org show that Bundler 2 is only used in about 2% of requests to RubyGems.org.</li>
+  <li>TravisCI seems to currently use Bundler 1 <a href="https://travis-ci.org/eregon/mspec/builds/600094360">for every Ruby version</a>.</li>
+  <li>Most Ruby projects I have seen with a <code class="highlighter-rouge">Gemfile.lock</code> are <code class="highlighter-rouge">BUNDLED WITH 1.x</code>, showing Bundler 1 is used.</li>
+</ul>
+
+<p>However, Bundler 1 seems no longer maintained (which is fair enough, who would want to maintain Ruby 1.8 compatibility?) and likely will no longer receive bug fixes and security patches.</p>
+
+<p>So it is important that Rubyists migrate to Bundler 2,
+but I think the current situation made it so inconvenient that very few did.
+To address those concerns, I propose some ideas below to make migration to Bundler 2 easier.</p>
+
+<h2 id="a-better-migration-path-for-bundler-2">A Better Migration Path for Bundler 2+</h2>
+
+<p>Here are my suggestions to make migration to Bundler 2 easier.
+I think it would be good to integrate them in future Bundler releases, including 2.x releases.</p>
+
+<ol>
+  <li>Do not require a RubyGems version newer than what Ruby versions supported by Bundler ship.
+  Requiring to update RubyGems causes many troubles as seen wth Bundler 2.0.0.</li>
+  <li>Drop the version autoswitching mechanism in RubyGems for Bundler entirely. For older RubyGems versions with autoswitching, do whatever is necessary in Bundler to avoid that behavior, or at least warn.</li>
+  <li>Every future version of Bundler should support previous versions of <code class="highlighter-rouge">Gemfile</code> and <code class="highlighter-rouge">Gemfile.lock</code>.</li>
+  <li>Do not modify the <code class="highlighter-rouge">Gemfile.lock</code> if there would be no other change than the <code class="highlighter-rouge">BUNDLED WITH</code> version (e.g., for <code class="highlighter-rouge">bundle install</code> with an existing up-to-date <code class="highlighter-rouge">Gemfile.lock</code>).</li>
+</ol>
+
+<p>This third point about backward compatibility might require extra maintenance work in Bundler.
+However, I think almost every software of the scale of Bundler needs to do this kind of things,
+and I would expect keeping a few extra parsers for older formats of <code class="highlighter-rouge">Gemfile.lock</code> is not so much work.
+For instance, even in Bundler 10, I expect installing gems from an already-resolved <code class="highlighter-rouge">Gemfile.lock</code> is basically just installing every listed gem with the listed version.
+Why <code class="highlighter-rouge">Gemfile</code> and not just <code class="highlighter-rouge">Gemfile.lock</code>? Because Bundler evaluates the <code class="highlighter-rouge">Gemfile</code> in all cases in its current design.</p>
+
+<p>I think supporting older <code class="highlighter-rouge">Gemfile</code> and <code class="highlighter-rouge">Gemfile.lock</code> is the key for more people to adopt newer versions of Bundler.
+And importantly, this is the only way people can use newer versions of Bundler and stop using unmaintained and old Bundler versions for existing <code class="highlighter-rouge">Gemfile.lock</code> files with <code class="highlighter-rouge">BUNDLED WITH 1.x</code> (not all <code class="highlighter-rouge">Gemfile.lock</code> will be migrated immediately to Bundler 2).</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>I shared these suggestions with the Bundler team in October 2019 and they generally agreed and already discussed these subjects at RubyKaigi 2019.</p>
+
+<p>Some of the suggestions listed above have already been addressed.
+For instance, the RubyGems version requirement (#1) was fixed in 2.0.1, one day after the 2.0.0 release.</p>
+
+<p>The latest RubyGems and Bundler 2 can actually already install a <code class="highlighter-rouge">Gemfile.lock</code> <code class="highlighter-rouge">BUNDLED WITH 1.x</code> (#3), but it unfortunately changes the <code class="highlighter-rouge">BUNDLED WITH</code> section for seemingly no reason (#4 not yet). This can be seen on 2.7.0-preview2:</p>
+
+<pre>
+$ chruby 2.7.0-preview2
+$ bundle _2.1.0.pre.2_ install
+...
+<span style="color: GoldenRod">Warning: the lockfile is being updated to Bundler 2,
+after which you will be unable to return to Bundler 1.</span>
+<span style="color: green">Bundle complete! 2 Gemfile dependencies, 7 gems now installed.
+Use `bundle info [gemname]` to see where a bundled gem is installed.</span>
+$ git diff
+<span style="color: red">---</span> Gemfile.lock
+<span style="color: green">+++</span> Gemfile.lock
+ BUNDLED WITH
+<span style="color: red">-   1.17.2</span>
+<span style="color: green">+   2.1.0.pre.2</span>
+</pre>
+
+<p>That changes is annoying.
+Suppose I’m contributing to Rails and I’m just doing <code class="highlighter-rouge">bundle install</code> (without modifying any <code class="highlighter-rouge">Gemfile</code>).
+If this changes the <code class="highlighter-rouge">Gemfile.lock</code> I will have to constantly undo that change, or be careful to not commit it and keep a dirty working tree.
+If it is committed and merged, it would force every single contributor of Rails (and the CI) to use Bundler 2 once they pull that change.
+And every such contributor, when doing <code class="highlighter-rouge">bundle install</code> on their own projects would also see the <code class="highlighter-rouge">BUNDLED WITH</code> version updated, making this a cascading effect.
+That sounds to me like a recipe for a really not smooth migration forcing everyone to update in a really short time, so that’s why I think Bundler should not touch the <code class="highlighter-rouge">Gemfile.lock</code> if there would be no other change than the <code class="highlighter-rouge">BUNDLED WITH</code> version (#4).</p>
+
+<p>On the other hand, it seems fine to use <code class="highlighter-rouge">BUNDLED WITH 2.x</code> if there is no <code class="highlighter-rouge">Gemfile.lock</code> or the dependencies need to be re-resolved due to, e.g., adding a gem, since Bundler 2 might resolve gems differently than Bundler 1.</p>
+
+<p>So #1 and #3 seem mostly done for the latest 2.x release, but #2 and #4 are not yet addressed.</p>
+
+<p>Does that sound like a good migration plan to you?</p>
+
+<p>Would you be willing to help making these changes in Bundler and RubyGems?</p>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2020/06/27/ruby-spec-compatibility-report.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2019/11/10/the-delegation-challenge-of-ruby27.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

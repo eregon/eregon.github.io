@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      RubySpec is Reborn! &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2015/07/29/rubyspec-is-reborn.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="RubySpec is Reborn!" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Reposted from the ruby/spec blog post and slightly updated." />
+<meta property="og:description" content="Reposted from the ruby/spec blog post and slightly updated." />
+<link rel="canonical" href="https://eregon.me/blog/2015/07/29/rubyspec-is-reborn.html" />
+<meta property="og:url" content="https://eregon.me/blog/2015/07/29/rubyspec-is-reborn.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2015-07-29T00:00:00+02:00" />
+<script type="application/ld+json">
+{"description":"Reposted from the ruby/spec blog post and slightly updated.","headline":"RubySpec is Reborn!","dateModified":"2015-07-29T00:00:00+02:00","datePublished":"2015-07-29T00:00:00+02:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2015/07/29/rubyspec-is-reborn.html"},"url":"https://eregon.me/blog/2015/07/29/rubyspec-is-reborn.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2015-07-29 00:00:00 +0200">July 29, 2015</time>
+    
+  </div>
+
+  <h1 class="post-title">RubySpec is Reborn!</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>Reposted from the <a href="https://eregon.github.io/rubyspec/2015/07/29/rubyspec-is-reborn.html">ruby/spec blog post</a> and slightly updated.</p>
+
+<h3 id="tldr">TL;DR</h3>
+<p>The Ruby Spec Suite is actively maintained at <a href="https://github.com/ruby/spec">ruby/spec</a> and
+<a href="http://rubyci.org/">MRI</a>, <a href="http://jruby.org/">JRuby</a>, <a href="http://opalrb.org/">Opal</a> and various individuals are contributing to it.
+Any contribution is welcome!</p>
+
+<h3 id="once-upon-a-31st-december-">Once Upon a 31<sup>st</sup> December …</h3>
+
+<p><a href="https://github.com/brixen">@brixen</a>, the main contributor to RubySpec, decided to <a href="http://rubini.us/2014/12/31/matz-s-ruby-developers-don-t-use-rubyspec/">end the project</a>.
+While no longer maintaining the project is understandable,
+ending it entirely might be a bit presumptuous.</p>
+
+<p>A few days later, <a href="https://github.com/headius">@headius</a> started a discussion on <a href="http://blade.nagaokaut.ac.jp/cgi-bin/scat.rb/ruby/ruby-core/67346">ruby-core</a>
+about the <em>“Future of test suites for Ruby”</em>.
+Participants quickly agreed that both RubySpec and the MRI test suite are valuable, have their own strengths and are complementary.
+After a couple exchanges with contributors from different Ruby implementations, I announced my intention to revive RubySpec as a collaborative effort.</p>
+
+<h3 id="bringing-rubyspec-up-to-date">Bringing RubySpec up to Date</h3>
+
+<p>MRI has been running RubySpec since its 1.9.2 release.
+But at some point RubySpec was forked because of some disagreements.
+That fork has been maintained by MRI committers to pass on all supported MRI versions but was never merged upstream.</p>
+
+<p>The first step was therefore to merge rubyspec/rubyspec with the MRI fork.</p>
+
+<p><a href="https://github.com/anthonycrumley">@anthonycrumley</a> started to fix many specs which were incompatible with MRI.
+<a href="https://github.com/nurse">@nurse</a> and <a href="https://github.com/hsbt">@hsbt</a> proposed to have the new repository at <a href="https://github.com/ruby/spec">ruby/spec</a>.
+And finally <a href="https://github.com/eregon">@eregon</a> made the actual merge (of 1426 commits!)
+and fixed the specs to run on all supported versions of MRI (2.0.0 – trunk).</p>
+
+<p>The result is we now have a version of RubySpec with all major forks integrated,
+fully compatible with the reference implementation and run by many others.</p>
+
+<h3 id="collaborating-with-other-implementations">Collaborating with Other Implementations</h3>
+
+<p>The goal of RubySpec is to define an accurate and runnable specification of the Ruby language.
+This is a challenging task and really makes sense only if many implementations use it.</p>
+
+<p>JRuby has been using RubySpec for many years but needed a more efficient way to contribute back than a separate repository. The technical issues were solved and commits are now synchronized regularly in both directions.
+<a href="https://github.com/graalvm/truffleruby">TruffleRuby</a>, a new high-performance implementation of Ruby, is also extensively using RubySpec.</p>
+
+<p>Opal started using RubySpec and now passes thousands of specs examples.
+<a href="https://github.com/vais">@vais</a> and <a href="https://github.com/elia">@elia</a> have recently switched to ruby/spec
+and already contributed many commits.
+Opal is a particularly interesting implementation for RubySpec
+in that it tries to find the balance between mapping Ruby concepts to JavaScript and being more compatible.</p>
+
+<p>We <a href="https://github.com/rubinius/rubinius/issues/3403">asked</a> Rubinius if they wanted to contribute to a common set of Ruby specs
+and they replied they were no more interested in that, although some
+sharing might be possible while they use RubySpec-like specs (it’s open source after all!).</p>
+
+<h3 id="contributing">Contributing</h3>
+
+<p>Any contribution to RubySpec is a contribution to better specify Ruby
+and to guarantee consistent behavior across various implementations.</p>
+
+<p>There is only one rule to contribute: respecting the existing style of specs.
+We want to maintain a good standard for specs and for that
+we just ask to use pull requests for new contributions.</p>
+
+<p>The question is then, how to contribute?</p>
+
+<p>There are many ways, but the most common are:</p>
+
+<ul>
+  <li>Improve existing specs: clarify behavior, make them less implementation-dependent, etc</li>
+  <li>Write specs for currently unspecified methods (there is a <a href="https://github.com/ruby/spec/blob/master/CONTRIBUTING.md">tool</a> for it!)</li>
+  <li>Write specs for new Ruby features</li>
+</ul>
+
+<p>If you are not sure what to work on, just <a href="https://github.com/ruby/spec/issues">open an issue</a> and ask!</p>
+
+<figure class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">describe</span> <span class="s2">"RubySpec.new"</span> <span class="k">do</span>
+  <span class="n">it</span> <span class="s2">"is a path to more compatible rubies"</span> <span class="k">do</span>
+    <span class="n">contribute</span><span class="p">.</span><span class="nf">and</span><span class="p">(</span><span class="n">the_future</span><span class="p">.</span><span class="nf">of</span><span class="p">(</span><span class="no">Ruby</span><span class="p">)).</span><span class="nf">should</span> <span class="o">==</span> <span class="ss">:bright</span>
+  <span class="k">end</span>
+<span class="k">end</span></code></pre></figure>
+
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2016/11/28/optcarrot.html" class="left arrow">&#8592;</a>
+  
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>

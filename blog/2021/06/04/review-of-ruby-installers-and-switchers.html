@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>
+    
+      Review: Ruby Installers and Ruby Switchers &middot; On the Edge of Ruby
+    
+  </title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/blog/assets/main.css?v=3">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Libre+Baskerville:400,400i,700">
+  <link rel="stylesheet" href="/blog/assets/custom.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/syntax.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/table.css?v=3">
+  <link rel="stylesheet" href="/blog/assets/circle.css?v=3">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/assets/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/assets/apple-touch-icon.png">
+
+  <!-- From Minima -->
+  <link rel="canonical" href="https://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html">
+  <link rel="alternate" type="application/rss+xml" title="On the Edge of Ruby" href="/blog/feed.xml">
+
+  <!-- Begin Jekyll SEO tag v2.4.0 -->
+<meta name="generator" content="Jekyll v3.6.2" />
+<meta property="og:title" content="Review: Ruby Installers and Ruby Switchers" />
+<meta name="author" content="Benoit Daloze" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="In this post I review the most popular Ruby installers (making it easier to install a Ruby) and Ruby switchers (to switch between different Rubies conveniently)." />
+<meta property="og:description" content="In this post I review the most popular Ruby installers (making it easier to install a Ruby) and Ruby switchers (to switch between different Rubies conveniently)." />
+<link rel="canonical" href="https://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html" />
+<meta property="og:url" content="https://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html" />
+<meta property="og:site_name" content="On the Edge of Ruby" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-06-04T00:00:00+02:00" />
+<script type="application/ld+json">
+{"description":"In this post I review the most popular Ruby installers (making it easier to install a Ruby) and Ruby switchers (to switch between different Rubies conveniently).","headline":"Review: Ruby Installers and Ruby Switchers","dateModified":"2021-06-04T00:00:00+02:00","datePublished":"2021-06-04T00:00:00+02:00","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html"},"url":"https://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png"},"name":"Benoit Daloze"},"author":{"@type":"Person","name":"Benoit Daloze"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+  
+  <meta property="og:image" content="https://eregon.me/blog/assets/truffleruby_logo_notext250_lightgrey.png" />
+  
+
+  
+
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CEFYQ500D6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CEFYQ500D6');
+</script>
+
+  
+</head>
+
+
+  <body>
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/blog/">
+          <img src="/blog/assets/truffleruby_logo_notext.svg" style="float: left; height: 4.2em">
+          <h2 class="nav-title">On the Edge of Ruby</h2>
+        </a>
+        <p>A blog about Ruby, Performance and Concurrency</p>
+        <ul>
+          <li><a href="/blog/">Posts</a></li>
+          <li><a href="/blog/research">Research</a></li>
+          <li><a href="/blog/about">About</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <main>
+      <div class="post">
+  <div class="post-info">
+    <span>Written by</span>
+    
+        Benoit Daloze <a href="https://eregon.me.bsky.social">@eregon.me</a>
+    
+
+    
+      <br>
+      <span>on&nbsp;</span><time datetime="2021-06-04 00:00:00 +0200">June 04, 2021</time>
+    
+  </div>
+
+  <h1 class="post-title">Review: Ruby Installers and Ruby Switchers</h1>
+  <div class="post-line"></div>
+
+  
+
+  <p>In this post I review the most popular Ruby installers (making it easier to install a Ruby)
+and Ruby switchers (to switch between different Rubies conveniently).</p>
+
+<p>I contributed to all 3 Ruby installers when adding support for <a href="https://www.graalvm.org/ruby/">TruffleRuby</a>,
+and so I have experience both with their codebase and their usage.</p>
+
+<p>I am not reviewing Ruby installers or switchers for Windows as I have no experience with them.</p>
+
+<p>TLDR: feel free to jump to the <a href="#conclusion-and-recommendation">Conclusion and Recommendation</a>.</p>
+
+<h2 id="ruby-installers">Ruby Installers</h2>
+
+<h3 id="rvm">RVM</h3>
+
+<p><a href="https://github.com/rvm/rvm">RVM</a> is probably the oldest and certainly the
+Ruby installer with the most features.
+That’s actually a doubled-edged sword, as it means RVM has a much larger codebase
+than all the others (25000 SLOC of Bash), and that makes it hard to maintain and
+to keep correct (note: I’m not counting test SLOC).
+Some features like gemsets seem much less needed nowadays as there is Bundler.</p>
+
+<p>To give an idea, when I <a href="https://github.com/rvm/rvm/issues/4297">added support</a> for TruffleRuby in RVM,
+I had many uncertainties, and the large codebase plus a lot of global variables made it really tricky.
+As a result, there were multiple bugs and a lot more effort than for other Ruby installers.
+Also, RVM actually <a href="https://github.com/rvm/rvm/issues/4408">changes</a> standard Ruby executables like <code class="highlighter-rouge">rake</code>,
+which I really dislike as a Ruby implementer because it tends to break things in subtle ways (this behavior was later disabled when installing TruffleRuby).</p>
+
+<p>To be fair, RVM served me well at the time other Ruby installers/switchers did not exist.</p>
+
+<p>RVM supports a lot of <a href="https://github.com/rvm/rvm/tree/master/scripts/functions/requirements">platforms</a>,
+as well as <a href="https://github.com/rvm/rvm/blob/master/config/known_strings">ancient Rubies</a>.
+More platforms can be nice for beginners, but platform-specific code eventually always breaks due to incompatible changes in operating systems (e.g., package names).</p>
+
+<p>Pros:</p>
+<ul>
+  <li>Most features</li>
+  <li>Automatically installs system packages for many platforms</li>
+  <li>Support the most Rubies, even very old ones (some with patches)</li>
+  <li>Binary builds of some CRuby versions on some platforms</li>
+  <li>Supports building <code class="highlighter-rouge">-head</code> versions</li>
+</ul>
+
+<p>Cons:</p>
+<ul>
+  <li>The built Ruby can differ quite a bit from a standard build, which can cause extra issues</li>
+  <li>Huge (25000 SLOC of Bash), hard to maintain, and due to that many bugs</li>
+</ul>
+
+<h3 id="ruby-build">ruby-build</h3>
+
+<p><a href="https://github.com/rbenv/ruby-build">ruby-build</a> is the best-maintained Ruby installer.
+Active maintainers include <code class="highlighter-rouge">@hsbt</code> from the CRuby core team, <a href="https://github.com/rbenv/ruby-build/graphs/contributors">others</a> and myself.</p>
+
+<p>It offers a <a href="https://github.com/rbenv/ruby-build/tree/master/share/ruby-build">wide choice</a> of Ruby versions.
+It also offers <code class="highlighter-rouge">-dev</code> versions, which is incredibly useful to let users check Ruby implementation bug fixes, or simply to try the latest/fastest/best build of a Ruby implementation.</p>
+
+<p>The design is really straightforward (one definition per Ruby version), and as a result it’s much more reliable.
+Users update <code class="highlighter-rouge">ruby-build</code> regularly as that is the way to get new versions. This is great to also ship bug fixes quickly.
+The release process is entirely automated (kudos to <code class="highlighter-rouge">@mislav</code>).</p>
+
+<p><code class="highlighter-rouge">ruby-build</code> does not install system packages for you,
+but documents them on <a href="https://github.com/rbenv/ruby-build/wiki">their wiki</a>, which I find is much more future-proof.</p>
+
+<p>Pros:</p>
+<ul>
+  <li>Actively maintained</li>
+  <li>Small, 1390 SLOC of Bash</li>
+  <li>Supports building <code class="highlighter-rouge">-dev</code> versions</li>
+</ul>
+
+<p>Cons:</p>
+<ul>
+  <li>Does not install system packages on its own (but that is more future-proof, and building Rubies tend to fail clearly when there is missing dependency)</li>
+</ul>
+
+<h3 id="ruby-install">ruby-install</h3>
+
+<p><a href="https://github.com/postmodern/ruby-install">ruby-install</a> is the simplest Ruby installer.</p>
+
+<p>It has an interesting design where installing new versions does not require to update <code class="highlighter-rouge">ruby-install</code>.
+Instead, <code class="highlighter-rouge">ruby-install --latest</code> is able to fetch the latest versions from <a href="https://github.com/postmodern/ruby-versions">ruby-versions</a> and install them.
+This is another double-edged sword.
+On one hand it’s very elegant, and super easy to update.
+On the other hand, if any other change is needed (e.g., different system packages, the download URL changed, etc), that actually requires <code class="highlighter-rouge">ruby-install</code> changes, and users seem less used to update <code class="highlighter-rouge">ruby-install</code>.
+<code class="highlighter-rouge">ruby-versions</code> only contains Ruby versions and checksums, not URLs or packages, which IMHO feels too limited.</p>
+
+<p>As an example, even though I made a PR to address a changed dependency the day it was reported,
+it took <a href="https://github.com/postmodern/ruby-install/issues/360">8 months</a> to have a <code class="highlighter-rouge">ruby-install</code> release with that (to be fair, there was an easy workaround).</p>
+
+<p><code class="highlighter-rouge">ruby-install</code> does not support development builds by design, which is IMHO a big limitation.</p>
+
+<p>Pros:</p>
+<ul>
+  <li>Tiny, 866 SLOC of Bash</li>
+  <li>Elegant design</li>
+  <li>Super easy to install the latest Ruby releases, if they don’t require <code class="highlighter-rouge">ruby-install</code> changes</li>
+</ul>
+
+<p>Cons:</p>
+<ul>
+  <li>Does not support <code class="highlighter-rouge">-dev</code> builds</li>
+  <li>Infrequent releases</li>
+  <li>Users are not used to update <code class="highlighter-rouge">ruby-install</code></li>
+  <li>Cuts a few corners in the name of simplicity</li>
+</ul>
+
+<h2 id="ruby-switchers">Ruby Switchers</h2>
+
+<h3 id="rvm-1">RVM</h3>
+
+<p>RVM is both a Ruby installer and Ruby switcher so it appears here too.
+The points above really apply to both so I will not repeat them here.</p>
+
+<p>The gemset feature tends to IMHO add more complexity than it helps, by making switching a 2-dimensional operation (ruby, gemset) instead of just 1 dimension (ruby).
+Also gemsets have symlimks in their path (not expanded, that’s how RVM knows which gemset is active), and this can occasionally cause <a href="https://github.com/rvm/rvm/issues/4425">issues</a>.</p>
+
+<p>Pros:</p>
+<ul>
+  <li>Most features</li>
+</ul>
+
+<p>Cons:</p>
+<ul>
+  <li>Overrides <code class="highlighter-rouge">cd</code></li>
+  <li>Loads thousands of lines of Bash in your shell</li>
+  <li>Many features which are of little use nowadays</li>
+</ul>
+
+<h3 id="rbenv">rbenv</h3>
+
+<p><a href="https://github.com/rbenv/rbenv">rbenv</a> is a simple Ruby switcher.
+It uses small <a href="https://medium.com/@Sudhagar/rbenv-how-it-works-e5a0e4fa6e76">shims</a> (executables) to always redirect to the currently-selected Ruby.
+There is an overhead of that, in the order of 11 ms on my machine (pretty small, considering that <code class="highlighter-rouge">ruby -e 0</code> takes 38 ms on my machine for ruby-3.0.1).
+OTOH, it guarantees it will never pick the wrong Ruby which is obviously important.</p>
+
+<p>For me, the killer feature of <code class="highlighter-rouge">rbenv</code> is it does not mess with RubyGems.
+Specifically, it does not set <code class="highlighter-rouge">GEM_HOME</code> or <code class="highlighter-rouge">GEM_PATH</code> (unlike the other Ruby switchers), and
+so the gems corresponding to the selected Ruby are always correctly used.
+That also means it expects that Rubies are installed in user-writable locations (or one uses <code class="highlighter-rouge">gem install --user-install</code> or set Bundler <code class="highlighter-rouge">path</code>),
+but I think that’s a reasonable assumption for a Ruby switcher.</p>
+
+<p><a href="https://github.com/asdf-vm/asdf">asdf</a> is a multi-language switcher with a very similar design to <code class="highlighter-rouge">rbenv</code> and it uses <code class="highlighter-rouge">ruby-build</code>.</p>
+
+<p>Pros:</p>
+<ul>
+  <li>Just works</li>
+  <li>Also works for non-Bash shells like <a href="https://fishshell.com/"><code class="highlighter-rouge">fish</code></a></li>
+  <li>Reliable, does not mess with <code class="highlighter-rouge">GEM_HOME</code></li>
+  <li>Well maintained, least number of open issues</li>
+  <li>Small, 1500 SLOC of Bash</li>
+</ul>
+
+<p>Cons:</p>
+<ul>
+  <li>Small overhead on startup (~11 ms) due to shims</li>
+  <li><code class="highlighter-rouge">which ruby-related-executable</code> is not enough to show the actual executable path, one needs <code class="highlighter-rouge">rbenv which</code> instead</li>
+</ul>
+
+<h3 id="chruby">chruby</h3>
+
+<p><a href="https://github.com/postmodern/chruby">chruby</a> is a minimal Ruby switcher.
+In fact, it’s so small it fits in a <a href="https://github.com/postmodern/chruby/blob/master/share/chruby/chruby.sh">100 lines of Bash</a>.
+After all, switching Rubies only requires changing <code class="highlighter-rouge">PATH</code> and that’s it.</p>
+
+<p>Unfortunately, <code class="highlighter-rouge">chruby</code> does one additional thing which is to set <code class="highlighter-rouge">GEM_HOME</code>.
+That can be convenient to install gems when a Ruby is installed in a non user-writable location.
+Unfortunately the way it’s done is <a href="https://github.com/postmodern/chruby/issues/451">incorrect</a> for non-CRuby.
+I made a PR to fix this but 18 months after it was merged there is still no release.
+So at this point I feel very disappointed about the maintenance of chruby.</p>
+
+<p>I still like <code class="highlighter-rouge">chruby</code> though, and I use <a href="https://github.com/postmodern/chruby/compare/master...eregon:do-no-set-gem-home">a branch</a> which simply doesn’t set <code class="highlighter-rouge">GEM_HOME</code>.
+That’s just <a href="https://github.com/eregon/chruby/blob/do-no-set-gem-home/share/chruby/chruby.sh">75 SLOC of Bash</a>, one cannot get much simpler for switching Rubies.
+This is probably the most future-proof Ruby switcher out there.</p>
+
+<p>FWIW, I made another PR to <code class="highlighter-rouge">chruby</code> to use a similar approach, but still set <code class="highlighter-rouge">GEM_HOME</code> if the default Gem home is not writable.
+After lots of efforts, and even getting consensus on the related <a href="https://github.com/rubygems/rubygems/pull/2847">RubyGems issue</a> for the general approach,
+<a href="https://github.com/postmodern/chruby/pull/431">the PR</a> is still not merged so I have not much hope for that (maybe it is time to hard fork <code class="highlighter-rouge">chruby</code> …).</p>
+
+<p>Pros:</p>
+<ul>
+  <li>Very simple and minimal, 149 SLOC of Bash</li>
+</ul>
+
+<p>Cons:</p>
+<ul>
+  <li>Sets <code class="highlighter-rouge">GEM_HOME</code> incorrectly on non-CRuby</li>
+  <li>Requires to be loaded in the shell (there is <a href="https://github.com/JeanMertz/chruby-fish">chruby-fish</a> though)</li>
+  <li>Too rare releases, not addressing bugs promptly</li>
+</ul>
+
+<h2 id="conclusion-and-recommendation">Conclusion and Recommendation</h2>
+
+<p>In summary:</p>
+<ul>
+  <li>I recommend to use <code class="highlighter-rouge">ruby-build</code> over RVM or <code class="highlighter-rouge">ruby-install</code> as IMHO it is a better Ruby installer in about every way.</li>
+  <li>I recommend to use <code class="highlighter-rouge">rbenv</code> over RVM or <code class="highlighter-rouge">chruby</code> as it is the only Ruby switcher not messing with gem paths.</li>
+</ul>
+
+<p>The <code class="highlighter-rouge">rbenv</code>/<code class="highlighter-rouge">ruby-build</code> combo is fairly natural and clearly the best maintained.</p>
+
+<p>Alternatively, you can try <code class="highlighter-rouge">ruby-build</code> + my <a href="https://github.com/postmodern/chruby/compare/master...eregon:do-no-set-gem-home">branch of <code class="highlighter-rouge">chruby</code> which does not set <code class="highlighter-rouge">GEM_HOME</code></a>.
+This is what I use and it works perfectly from my experience.</p>
+
+<p>I would recommend against RVM because of the sheer complexity and the huge codebase which is basically impossible to keep bug-free.</p>
+
+<p>Note that while I might criticize various softwares in this blog post,
+I have a lot of respect for their authors, and
+I know it is a hard job to maintain such software (written in Bash, one of the worst programming languages).</p>
+
+</div>
+
+<div class="pagination">
+  
+    <a href="/blog/2022/01/06/benchmarking-cruby-mjit-yjit-jruby-truffleruby.html" class="left arrow">&#8592;</a>
+  
+  
+    <a href="/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html" class="right arrow">&#8594;</a>
+  
+
+  <a href="#" class="top">Top</a>
+</div>
+
+    </main>
+
+    <footer>
+  <!-- From Tale -->
+  <span>
+    &copy; 2026 Benoit Daloze.
+    Opinions are my own.
+    <a href="/blog/feed.xml">Atom/RSS Feed</a>.
+    Made with Jekyll using the <a href="https://github.com/chesterhow/tale/">Tale</a> theme.
+  </span>
+  <br/>
+  <span>
+    Favicon: TruffleRuby logo Copyright &copy; 2017 Talkdesk, Inc. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+  </span>
+</footer>
+
+
+  </body>
+</html>
