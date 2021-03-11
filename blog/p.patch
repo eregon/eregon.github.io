@@ -1,0 +1,75 @@
+27c27,28
+< All these parsers return different ASTs, some have more information than others and might be more or less practical to use, but they are all ASTs representing Ruby code.
+---
+> All these parsers return different ASTs.
+> Some have more information than others and might be more or less practical to use, but they are all ASTs representing Ruby code.
+30c31
+< This is the case of `RubyVM::AbstractSyntaxTree`, and it can be seen by looking at allocations:
+---
+> This is the case of `RubyVM::AbstractSyntaxTree`, as can be seen by looking at allocations:
+40c41
+< 36835 nodes for Prism seems consistent with the 37762 nodes for the Parser gem.
+---
+> 36835 nodes for Prism is consistent with the 37762 nodes for the Parser gem.
+42,43c43,44
+< 230854 for Ripper seems a lot, but one inaccuracy here is Ripper uses Arrays not only for nodes but also for positions like `[line, column]` and Arrays might be used for other things too.
+< RubyVM::AbstractSyntaxTree only allocates 151 nodes: that's definitely suspicious and proves RubyVM::AbstractSyntaxTree creates Ruby node objects lazily.
+---
+> 230854 for Ripper looks to be an outlier, but one inaccuracy here is Ripper uses Arrays not only for nodes but also for positions like `[line, column]` and Arrays might be used for other things too.
+> `RubyVM::AbstractSyntaxTree` only allocates 151 nodes: that's definitely suspicious and proves `RubyVM::AbstractSyntaxTree` creates Ruby node objects lazily.
+78c79
+< We can see walking causes extra allocations for Prism, which is expected because each call to `child_nodes` allocates an Array.
+---
+> We can see walking the AST causes extra allocations for Prism, which is expected because each call to `child_nodes` allocates an Array.
+81c82
+< RubyVM::AbstractSyntaxTree allocates arrays and nodes while being walked.
+---
+> `RubyVM::AbstractSyntaxTree` allocates Arrays and nodes while being walked.
+103c104,105
+< Though this gives an advantage for Ripper, Parser gem and RubyParser as they don't need extra Array allocations to walk the AST, but they are slower anyway.
+---
+> However, this gives an advantage for Ripper, Parser gem, and RubyParser as they don't need extra Array allocations to walk the AST.
+> Despite that advantage, all three are slower thas Prism.
+105c107,108
+< Prism and RubyVM::AbstractSyntaxTree are more than 10 times as fast as the Parser gem and RubyParser here, that's quite the speedup.
+---
+> Prism and `RubyVM::AbstractSyntaxTree` are more than 10 times as fast as the Parser gem and RubyParser in this benchmark.
+> That's quite the speedup.
+127,128c130,132
+< We can also find a way to measure just the parsing itself and creation of C data structures to hold the result and not creating Ruby objects for it, i.e. to allocate as few Ruby objects as possible,
+< This is feasible for `Prism` and for `RubyVM::AbstractSyntaxTree`.
+---
+> We can also find a way to measure just the parsing itself and the creation of C data structures to hold the parse result.
+> In this configuration the parser will allocate as few Ruby objects as possible.
+> This approach is feasible for `Prism` and for `RubyVM::AbstractSyntaxTree`.
+130c134,135
+< `RubyVM::AbstractSyntaxTree.parse` does very little extra work besides parsing to C structs, which I double-checked by measuring the time around `yyparse()` for a large file, about 99.8% of the time is spent inside `yyparse()`, so `RubyVM::AbstractSyntaxTree.parse` is a good approximation for `yyparse()`.
+---
+> `RubyVM::AbstractSyntaxTree.parse` does very little extra work besides parsing to C structs, which I double-checked by measuring the time around `yyparse()` for a large file.
+> About 99.8% of the time is spent inside `yyparse()`, so `RubyVM::AbstractSyntaxTree.parse` is a good approximation for `yyparse()`.
+149c154
+< This means `Prism` is 2.56 times as fast as `parse.y` to parse this corpus of Ruby code!
+---
+> This means `Prism` is 2.56 times as fast as `parse.y` (the parser in CRuby 3.3) in parsing this corpus of Ruby code!
+151a157
+> <!-- XXXX: I think this would be more compelling if you showed the parse.y parse rate as well. -->
+153,154c159,161
+< There are 16095 allocations for `RubyVM::AbstractSyntaxTree`, most of which are Strings, most of which are the one String per line (14625 lines) that the lexer used by `yyparse()` allocates (in `rb_parser_lex_get_str()`).
+< We see 151 `RubyVM::AbstractSyntaxTree::Node`, one per file, as expected.
+---
+> There are 16095 allocations for `RubyVM::AbstractSyntaxTree`, most of which are Strings.
+> Of those Strings, most are the one String per line (14625 lines) that the lexer used by `yyparse()` allocates (in `rb_parser_lex_get_str()`).
+> We see 151 `RubyVM::AbstractSyntaxTree::Node`: one per file, as expected.
+180c187
+< This speedup makes Ruby programs and applications boot faster on CRuby, by reducing the amount of time spent parsing and compiling to bytecode.
+---
+> This improvement makes Ruby programs and applications boot faster on CRuby, by reducing the amount of time spent parsing and compiling to bytecode.
+185c192
+< You can find the script I used to benchmark and get allocations [here](https://gist.github.com/eregon/27b56c686e238bafa6b46b73f17a4618).
+---
+> You can find the script I used to benchmark and get allocation counts [here](https://gist.github.com/eregon/27b56c686e238bafa6b46b73f17a4618).
+189c196,197
+< Benchmarking Ruby parsers is more tricky than one might expect but overall the result is clear: Prism is the fastest Ruby parser and it also provides a great and [well documented](https://ruby.github.io/prism/) API, which makes it much easier to build fast tooling for and in Ruby.
+---
+> Benchmarking Ruby parsers is trickier than one might expect, but overall the result is clear: Prism is the fastest Ruby parser.
+> Beyond raw performance, Prism also provides a great and [well documented](https://ruby.github.io/prism/) API, which makes it much easier to build fast tooling for and in Ruby.
