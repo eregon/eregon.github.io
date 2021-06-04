@@ -1,4 +1,210 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.2">Jekyll</generator><link href="http://eregon.me/blog/feed.xml" rel="self" type="application/atom+xml" /><link href="http://eregon.me/blog/" rel="alternate" type="text/html" /><updated>2021-06-04T21:10:29+02:00</updated><id>http://eregon.me/blog/</id><title type="html">On the Edge of Ruby</title><subtitle>A blog about Ruby, Performance and Concurrency</subtitle><author><name>Benoit Daloze</name></author><entry><title type="html">Correct Delegation with Ruby 2.6, 2.7 and 3.0</title><link href="http://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html" rel="alternate" type="text/html" title="Correct Delegation with Ruby 2.6, 2.7 and 3.0" /><published>2021-02-13T00:00:00+01:00</published><updated>2021-02-13T00:00:00+01:00</updated><id>http://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3</id><content type="html" xml:base="http://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html">&lt;p&gt;While looking at how a few gems handle delegation on Ruby 2.7, I noticed that many of them are unfortunately incorrect.
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.2">Jekyll</generator><link href="http://eregon.me/blog/feed.xml" rel="self" type="application/atom+xml" /><link href="http://eregon.me/blog/" rel="alternate" type="text/html" /><updated>2021-06-04T21:30:00+02:00</updated><id>http://eregon.me/blog/</id><title type="html">On the Edge of Ruby</title><subtitle>A blog about Ruby, Performance and Concurrency</subtitle><author><name>Benoit Daloze</name></author><entry><title type="html">Review: Ruby Installers and Ruby Switchers</title><link href="http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html" rel="alternate" type="text/html" title="Review: Ruby Installers and Ruby Switchers" /><published>2021-06-04T00:00:00+02:00</published><updated>2021-06-04T00:00:00+02:00</updated><id>http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers</id><content type="html" xml:base="http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html">&lt;p&gt;In this post I review the most popular Ruby installers (making it easier to install a Ruby)
+and Ruby switchers (to switch between different Rubies conveniently).&lt;/p&gt;
+
+&lt;p&gt;I contributed to all 3 Ruby installers when adding support for &lt;a href=&quot;https://www.graalvm.org/ruby/&quot;&gt;TruffleRuby&lt;/a&gt;,
+and so I have experience both with their codebase and their usage.&lt;/p&gt;
+
+&lt;p&gt;I am not reviewing Ruby installers or switchers for Windows as I have no experience with them.&lt;/p&gt;
+
+&lt;p&gt;TLDR: feel free to jump to the &lt;a href=&quot;#conclusion-and-recommendation&quot;&gt;Conclusion and Recommendation&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;ruby-installers&quot;&gt;Ruby Installers&lt;/h2&gt;
+
+&lt;h3 id=&quot;rvm&quot;&gt;RVM&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/rvm/rvm&quot;&gt;RVM&lt;/a&gt; is probably the oldest and certainly the
+Ruby installer with the most features.
+That’s actually a doubled-edged sword, as it means RVM has a much larger codebase
+than all the others (25000 SLOC of Bash), and that makes it hard to maintain and
+to keep correct (note: I’m not counting test SLOC).
+Some features like gemsets seem much less needed nowadays as there is Bundler.&lt;/p&gt;
+
+&lt;p&gt;To give an idea, when I &lt;a href=&quot;https://github.com/rvm/rvm/issues/4297&quot;&gt;added support&lt;/a&gt; for TruffleRuby in RVM,
+I had many uncertainties, and the large codebase plus a lot of global variables made it really tricky.
+As a result, there were multiple bugs and a lot more effort than for other Ruby installers.
+Also, RVM actually &lt;a href=&quot;https://github.com/rvm/rvm/issues/4408&quot;&gt;changes&lt;/a&gt; standard Ruby executables like &lt;code class=&quot;highlighter-rouge&quot;&gt;rake&lt;/code&gt;,
+which I really dislike as a Ruby implementer because it tends to break things in subtle ways (this behavior was later disabled when installing TruffleRuby).&lt;/p&gt;
+
+&lt;p&gt;To be fair, RVM served me well at the time other Ruby installers/switchers did not exist.&lt;/p&gt;
+
+&lt;p&gt;RVM supports a lot of &lt;a href=&quot;https://github.com/rvm/rvm/tree/master/scripts/functions/requirements&quot;&gt;platforms&lt;/a&gt;,
+as well as &lt;a href=&quot;https://github.com/rvm/rvm/blob/master/config/known_strings&quot;&gt;ancient Rubies&lt;/a&gt;.
+More platforms can be nice for beginners, but platform code eventually always breaks due to incompatible changes in operating systems (e.g., package names).&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Most features&lt;/li&gt;
+  &lt;li&gt;Automatically installs system packages for many platforms&lt;/li&gt;
+  &lt;li&gt;Support the most Rubies, even very old ones (some with patches)&lt;/li&gt;
+  &lt;li&gt;Binary builds of some CRuby versions on some platforms&lt;/li&gt;
+  &lt;li&gt;Supports building &lt;code class=&quot;highlighter-rouge&quot;&gt;-head&lt;/code&gt; versions&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The built Ruby can differ quite a bit from a standard build, which can cause extra issues&lt;/li&gt;
+  &lt;li&gt;Huge (25000 SLOC of Bash), hard to maintain, and due to that many bugs&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ruby-build&quot;&gt;ruby-build&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/rbenv/ruby-build&quot;&gt;ruby-build&lt;/a&gt; is the best-maintained Ruby installer.
+Active maintainers include &lt;code class=&quot;highlighter-rouge&quot;&gt;@hsbt&lt;/code&gt; from the CRuby core team, &lt;a href=&quot;https://github.com/rbenv/ruby-build/graphs/contributors&quot;&gt;others&lt;/a&gt; and myself.&lt;/p&gt;
+
+&lt;p&gt;It offers a &lt;a href=&quot;https://github.com/rbenv/ruby-build/tree/master/share/ruby-build&quot;&gt;wide choice&lt;/a&gt; of Ruby versions.
+It also offers &lt;code class=&quot;highlighter-rouge&quot;&gt;-dev&lt;/code&gt; versions, which is incredibly useful to let users check Ruby implementation bug fixes, or simply to try the latest/fastest/best build of a Ruby implementation.&lt;/p&gt;
+
+&lt;p&gt;The design is really straightforward (one definition per Ruby version), and as a result it’s much more reliable.
+Users update &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-build&lt;/code&gt; regularly as that is the way to get new versions. This is great to also ship bug fixes quickly.
+The release process is entirely automated (kudos to &lt;code class=&quot;highlighter-rouge&quot;&gt;@mislav&lt;/code&gt;).&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-build&lt;/code&gt; does not install system packages for you,
+but documents them on &lt;a href=&quot;https://github.com/rbenv/ruby-build/wiki&quot;&gt;their wiki&lt;/a&gt;, which I find is much more future-proof.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Actively maintained&lt;/li&gt;
+  &lt;li&gt;Small, 1390 SLOC of Bash&lt;/li&gt;
+  &lt;li&gt;Supports building &lt;code class=&quot;highlighter-rouge&quot;&gt;-dev&lt;/code&gt; versions&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Does not install system packages on its own (but that is more future-proof, and building Rubies tend to fail clearly when there is missing dependency)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ruby-install&quot;&gt;ruby-install&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/postmodern/ruby-install&quot;&gt;ruby-install&lt;/a&gt; is the simplest Ruby installer.&lt;/p&gt;
+
+&lt;p&gt;It has an interesting design where installing new versions does not require to update &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt;.
+Instead, &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install --latest&lt;/code&gt; is able to fetch the latest versions from &lt;a href=&quot;https://github.com/postmodern/ruby-versions&quot;&gt;ruby-versions&lt;/a&gt; and install them.
+This is another double-edged sword.
+On one hand it’s very elegant, and super easy to update.
+On the other hand, if any other change is needed (e.g., different system packages, the download URL changed, etc), that actually requires &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt; changes, and users seem less used to update &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt;.
+&lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-versions&lt;/code&gt; only contains Ruby versions and checksums, not URLs or packages, which IMHO feels too limited.&lt;/p&gt;
+
+&lt;p&gt;As an example, even though I made a PR to address a changed dependency the day it was reported,
+it took &lt;a href=&quot;https://github.com/postmodern/ruby-install/issues/360&quot;&gt;8 months&lt;/a&gt; to have a &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt; release with that (to be fair, there was an easy workaround).&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt; does not support development builds by design, which is IMHO a big limitation.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Tiny, 866 SLOC of Bash&lt;/li&gt;
+  &lt;li&gt;Elegant design&lt;/li&gt;
+  &lt;li&gt;Super easy to install the latest Ruby releases, if they don’t require &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt; changes&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Does not support &lt;code class=&quot;highlighter-rouge&quot;&gt;-dev&lt;/code&gt; builds&lt;/li&gt;
+  &lt;li&gt;Infrequent releases&lt;/li&gt;
+  &lt;li&gt;Users are not used to update &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Cuts a few corners in the name of simplicity&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;ruby-switchers&quot;&gt;Ruby Switchers&lt;/h2&gt;
+
+&lt;h3 id=&quot;rvm-1&quot;&gt;RVM&lt;/h3&gt;
+
+&lt;p&gt;RVM is both a Ruby installer and Ruby switcher so it appears here too.
+The points above really apply to both so I will not repeat them here.&lt;/p&gt;
+
+&lt;p&gt;The gemset feature tends to IMHO add more complexity than it helps, by making switching a 2-dimensional operation (ruby, gemset) instead of just 1 dimension (ruby).
+Also gemsets have symlimks in their path (not expanded, that’s how RVM knows which gemset is active), and this can occasionally cause &lt;a href=&quot;https://github.com/rvm/rvm/issues/4425&quot;&gt;issues&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Most features&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Overrides &lt;code class=&quot;highlighter-rouge&quot;&gt;cd&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Loads thousands of lines of Bash in your shell&lt;/li&gt;
+  &lt;li&gt;Many features which are of little use nowadays&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;rbenv&quot;&gt;rbenv&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/rbenv/rbenv&quot;&gt;rbenv&lt;/a&gt; is a simple Ruby switcher.
+It uses small shims (executables) to always redirect to the currently-selected Ruby.
+There is an overhead of that, in the order of 11 ms on my machine (pretty small, considering that &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby -e 0&lt;/code&gt; takes 38 ms on my machine for ruby-3.0.1).
+OTOH, it guarantees it will never pick the wrong Ruby which is obviously important.&lt;/p&gt;
+
+&lt;p&gt;For me, the killer feature of &lt;code class=&quot;highlighter-rouge&quot;&gt;rbenv&lt;/code&gt; is it does not mess with RubyGems.
+Specifically, it does not set &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt; or &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_PATH&lt;/code&gt; (unlike the other Ruby switchers), and
+so the gems corresponding to the selected Ruby are always correctly used.
+That also means it expects that Rubies are installed in user-writable locations (or one uses &lt;code class=&quot;highlighter-rouge&quot;&gt;gem install --user-install&lt;/code&gt; or set Bundler &lt;code class=&quot;highlighter-rouge&quot;&gt;path&lt;/code&gt;),
+but I think that’s a reasonable assumption for a Ruby switcher.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/asdf-vm/asdf&quot;&gt;asdf&lt;/a&gt; is a multi-language switcher with a very similar design to &lt;code class=&quot;highlighter-rouge&quot;&gt;rbenv&lt;/code&gt; and it uses &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-build&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Just works&lt;/li&gt;
+  &lt;li&gt;Also works for non-Bash shells like &lt;a href=&quot;https://fishshell.com/&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;fish&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;Reliable, does not mess with &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Well maintained, least number of open issues&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Small overhead on startup (~11 ms) due to shims&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;chruby&quot;&gt;chruby&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/postmodern/chruby&quot;&gt;chruby&lt;/a&gt; is a minimal Ruby switcher.
+In fact, it’s so small it fits in a &lt;a href=&quot;https://github.com/postmodern/chruby/blob/master/share/chruby/chruby.sh&quot;&gt;100 lines of Bash&lt;/a&gt;.
+After all, switching Rubies only requires changing &lt;code class=&quot;highlighter-rouge&quot;&gt;PATH&lt;/code&gt; and that’s it.&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, &lt;code class=&quot;highlighter-rouge&quot;&gt;chruby&lt;/code&gt; does one additional thing which is to set &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt;.
+That can be convenient to install gems when a Ruby is installed in a non user-writable location.
+Unfortunately the way it’s done is &lt;a href=&quot;https://github.com/postmodern/chruby/issues/451&quot;&gt;incorrect&lt;/a&gt; for non-CRuby.
+I made a PR to fix this but 18 months after it was merged there is still no release.
+So at this point I feel very disappointed about the maintenance of chruby.&lt;/p&gt;
+
+&lt;p&gt;I still like &lt;code class=&quot;highlighter-rouge&quot;&gt;chruby&lt;/code&gt; though, and I use &lt;a href=&quot;https://github.com/postmodern/chruby/compare/master...eregon:do-no-set-gem-home&quot;&gt;a branch&lt;/a&gt; which simply doesn’t set &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt;.
+That’s just &lt;a href=&quot;https://github.com/eregon/chruby/blob/do-no-set-gem-home/share/chruby/chruby.sh&quot;&gt;75 SLOC of Bash&lt;/a&gt;, one cannot get much simpler for switching Rubies.
+This is probably the most future-proof Ruby switcher out there.&lt;/p&gt;
+
+&lt;p&gt;FWIW, I made another PR to &lt;code class=&quot;highlighter-rouge&quot;&gt;chruby&lt;/code&gt; to use a similar approach, but still set &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt; if the default Gem home is not writable.
+After lots of efforts, and even getting consensus on the related &lt;a href=&quot;https://github.com/rubygems/rubygems/pull/2847&quot;&gt;RubyGems issue&lt;/a&gt; for the general approach,
+&lt;a href=&quot;https://github.com/postmodern/chruby/pull/431&quot;&gt;the PR&lt;/a&gt; is still not merged so I have not much hope for that (maybe it is time to hard fork &lt;code class=&quot;highlighter-rouge&quot;&gt;chruby&lt;/code&gt; …).&lt;/p&gt;
+
+&lt;p&gt;Pros:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Very simple and minimal&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Cons:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Sets &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt; incorrectly on non-CRuby&lt;/li&gt;
+  &lt;li&gt;Requires to be loaded in the shell (there is &lt;a href=&quot;https://github.com/JeanMertz/chruby-fish&quot;&gt;chruby-fish&lt;/a&gt; though)&lt;/li&gt;
+  &lt;li&gt;Too rare releases, not addressing bugs promptly&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;conclusion-and-recommendation&quot;&gt;Conclusion and Recommendation&lt;/h2&gt;
+
+&lt;p&gt;In summary:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;I recommend to use &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-build&lt;/code&gt; over RVM or &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-install&lt;/code&gt; as IMHO it is a better Ruby installer in about every way.&lt;/li&gt;
+  &lt;li&gt;I recommend to use &lt;code class=&quot;highlighter-rouge&quot;&gt;rbenv&lt;/code&gt; over RVM or &lt;code class=&quot;highlighter-rouge&quot;&gt;chruby&lt;/code&gt; as it is the only Ruby switcher not messing with gem paths.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;rbenv&lt;/code&gt;/&lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-build&lt;/code&gt; combo is fairly natural and clearly the best maintained.&lt;/p&gt;
+
+&lt;p&gt;Alternatively, you can try &lt;code class=&quot;highlighter-rouge&quot;&gt;ruby-build&lt;/code&gt; + my &lt;a href=&quot;https://github.com/postmodern/chruby/compare/master...eregon:do-no-set-gem-home&quot;&gt;branch of &lt;code class=&quot;highlighter-rouge&quot;&gt;chruby&lt;/code&gt; which does not set &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt;&lt;/a&gt;.
+This is what I use and it works perfectly from my experience.&lt;/p&gt;
+
+&lt;p&gt;I would recommend against RVM because of the sheer complexity and the huge codebase which is basically impossible to keep bug-free.&lt;/p&gt;
+
+&lt;p&gt;Note that while I might criticize various softwares in this blog post,
+I have a lot of respect for their authors, as
+I know it is a hard job to maintain such software (written in Bash, one of the worst programming languages),
+and how annoying it can be to deal with not-relevant issue reports.&lt;/p&gt;</content><author><name>Benoit Daloze</name></author><summary type="html">In this post I review the most popular Ruby installers (making it easier to install a Ruby) and Ruby switchers (to switch between different Rubies conveniently).</summary></entry><entry><title type="html">Correct Delegation with Ruby 2.6, 2.7 and 3.0</title><link href="http://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html" rel="alternate" type="text/html" title="Correct Delegation with Ruby 2.6, 2.7 and 3.0" /><published>2021-02-13T00:00:00+01:00</published><updated>2021-02-13T00:00:00+01:00</updated><id>http://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3</id><content type="html" xml:base="http://eregon.me/blog/2021/02/13/correct-delegation-in-ruby-2-27-3.html">&lt;p&gt;While looking at how a few gems handle delegation on Ruby 2.7, I noticed that many of them are unfortunately incorrect.
 The &lt;a href=&quot;https://www.ruby-lang.org/en/news/2019/12/12/separation-of-positional-and-keyword-arguments-in-ruby-3-0/&quot;&gt;official blog post&lt;/a&gt;
 about keyword arguments changes in Ruby 2.7 and Ruby 3.0 is rather long and might be unclear.
 So I will keep this one really short and to the point.&lt;/p&gt;
@@ -2645,77 +2851,4 @@ Quoting from the &lt;a href=&quot;http://ruby-doc.org/core-2.5.0/Thread.html#met
 It took more than &lt;a href=&quot;https://bugs.ruby-lang.org/issues/6647&quot;&gt;5 years&lt;/a&gt; to convince matz and other MRI developers this is a feature worth having, to implement it, and to enable it by default.
 So, sometimes, keeping arguing for a feature you believe in actually works.
 A &lt;a href=&quot;https://bugs.ruby-lang.org/issues/14171&quot;&gt;bug&lt;/a&gt; was found in DRb thanks to this feature and there is a growing number of &lt;code class=&quot;highlighter-rouge&quot;&gt;report_on_exception&lt;/code&gt; output in CI, giving better clues about what goes wrong in tests.
-Here is my piece for a better programming experience with threads for Ruby 2.5.&lt;/p&gt;</content><author><name>Benoit Daloze</name></author><summary type="html">Ruby 2.4 introduced Thread.report_on_exception to print exceptions to $stderr when a Thread dies from an exception. However, it was disabled by default. In Ruby 2.5, I made Thread.report_on_exception enabled by default. This significantly improves debugging multithreaded programs in Ruby.</summary></entry><entry><title type="html">Running Optcarrot, a Ruby NES emulator, at 150 fps with the GUI!</title><link href="http://eregon.me/blog/2016/11/28/optcarrot.html" rel="alternate" type="text/html" title="Running Optcarrot, a Ruby NES emulator, at 150 fps with the GUI!" /><published>2016-11-28T00:00:00+01:00</published><updated>2016-11-28T00:00:00+01:00</updated><id>http://eregon.me/blog/2016/11/28/optcarrot</id><content type="html" xml:base="http://eregon.me/blog/2016/11/28/optcarrot.html">&lt;p&gt;&lt;a href=&quot;https://github.com/graalvm/truffleruby&quot;&gt;TruffleRuby&lt;/a&gt; runs &lt;a href=&quot;https://github.com/mame/optcarrot&quot;&gt;Optcarrot&lt;/a&gt;, a &lt;a href=&quot;https://en.wikipedia.org/wiki/Nintendo_Entertainment_System&quot;&gt;NES&lt;/a&gt; emulator written in Ruby, at 150 fps &lt;em&gt;while playing a NES game&lt;/em&gt;.&lt;/p&gt;
-
-&lt;p&gt;As we can see in the GIF, performance gets better as we play and the JIT kicks in. We start with 2 fps and a fairly laggy game in level 1 and end up at 150 fps with a very responsive game in level 3.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/blog/assets/optcarrot_screenshot.png&quot; alt=&quot;Screenshot&quot; style=&quot;display: inline&quot; /&gt;
-&lt;img src=&quot;/blog/assets/nes.gif&quot; alt=&quot;Recording&quot; style=&quot;display: inline&quot; /&gt;&lt;/p&gt;
-
-&lt;h3 id=&quot;the-optcarrot-benchmark&quot;&gt;The Optcarrot benchmark&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://github.com/mame/optcarrot&quot;&gt;Optcarrot&lt;/a&gt; is a key benchmark for &lt;a href=&quot;http://engineering.appfolio.com/appfolio-engineering/2015/11/18/ruby-3x3&quot;&gt;Ruby 3x3&lt;/a&gt; created by &lt;a href=&quot;https://github.com/mame&quot;&gt;@mame&lt;/a&gt;.
-It is also a NES emulator and runs around 20 fps (frames per second) on MRI, the reference implementation.
-Therefore, if MRI meets the 3x3 goal then it should run Optcarrot at 60 fps, the frequency of the NES,
-and we can play NES games!&lt;/p&gt;
-
-&lt;p&gt;But why wait? And why limit ourselves to 60 fps?
-When Optcarrot was announced a few months ago, I tried running it with TruffleRuby.
-&lt;a href=&quot;http://chrisseaton.com/rubytruffle&quot;&gt;TruffleRuby&lt;/a&gt; is a high-performance Ruby implementation based on Truffle and Graal
-on which I work and do research for more than 2 years now, along with Chris Seaton, Kevin Menard and Petr Chalupa.&lt;/p&gt;
-
-&lt;p&gt;The result was astonishing: the Optcarrot benchmark ran around 180 fps.
-That’s about 9 times faster than MRI!&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/blog/assets/compare.png&quot; alt=&quot;Boxplot&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;The only change needed to reach that level of performance was to &lt;a href=&quot;https://github.com/jruby/jruby/commit/5b4cdca0177f03a3ba110571aa26e60ec39ebdfe&quot;&gt;fix&lt;/a&gt; a &lt;code class=&quot;highlighter-rouge&quot;&gt;compare_by_identity&lt;/code&gt; Hash bug.
-Now you may wonder about startup, warmup or how long it takes until it’s fast.
-Here is the full picture for the first 3000 frames (that’s just 50 seconds at 60 fps).&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/blog/assets/times.png&quot; alt=&quot;Times&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;MRI 2.3.3 runs around 20 fps and is very stable, JRuby 9.1.6.0 with invokedynamic runs around 40 fps and TruffleRuby (from GraalVM 0.18) around 180 fps after warmup.
-There is definitely some warmup going on, but the milestone of 60 fps is reached at around 300 frames.
-For the record, this was run on a laptop with an Intel(R) Core(TM) i7-4702HQ CPU @ 2.20GHz
-with frequency scaling, turbo mode and hyper-threading all disabled.&lt;/p&gt;
-
-&lt;p&gt;But so far, these numbers were just for the benchmark, and it would be nice to actually use TruffleRuby to play the NES and see the numbers on a real game!&lt;/p&gt;
-
-&lt;h3 id=&quot;the-user-interface&quot;&gt;The User Interface&lt;/h3&gt;
-
-&lt;p&gt;I developed a new video driver to display the NES screen, using &lt;code class=&quot;highlighter-rouge&quot;&gt;mplayer&lt;/code&gt;, which only requires &lt;a href=&quot;https://github.com/eregon/optcarrot/blob/287e13c03c992ba6779aa8a175662c90ecfef027/lib/optcarrot/driver/mplayer_video.rb#L41&quot;&gt;writing the pixels to a pipe&lt;/a&gt;.
-I then adapted the FPS counter to be able to display 3 digits instead of maximum 2.&lt;/p&gt;
-
-&lt;p&gt;The existing video backends (SDL2, SFML) rely on FFI, which TruffleRuby does not support yet.
-The reason is existing implementations of FFI use native extensions of either &lt;a href=&quot;https://github.com/ffi/ffi/tree/master/ext/ffi_c&quot;&gt;10k lines of C&lt;/a&gt; or &lt;a href=&quot;https://github.com/jruby/jruby/tree/master/core/src/main/java/org/jruby/ext/ffi&quot;&gt;10k lines of Java&lt;/a&gt;, so it’s not clear which way is best to support it (handle all that implementation-specific extension code or port some parts to Ruby).&lt;/p&gt;
-
-&lt;p&gt;For the input, I used the existing terminal-based &lt;a href=&quot;https://github.com/mame/optcarrot/blob/master/lib/optcarrot/driver/term_input.rb&quot;&gt;input driver&lt;/a&gt; which just reads characters one by one.&lt;/p&gt;
-
-&lt;p&gt;The audio driver was disabled because audio doesn’t sound nice at a higher frame rate. The audio stream is still computed though, as in benchmark mode.&lt;/p&gt;
-
-&lt;p&gt;With this setup, we can play the NES as shown in the GIF above and it eventually reaches 150 fps on the Lan Master game. The drop from 180 fps is likely due to the extra work to render the frames to the screen and running a more varied workload (the benchmark mode only runs the splash screen).&lt;/p&gt;
-
-&lt;p&gt;There is a problem though with playing at 150 fps: it’s really hard!
-For time-based games such as Lan Master, it means we have less than half (2/5) of the time we get at 60 fps. On the other hand, the game is really reactive and it’s much faster to move across the board.&lt;/p&gt;
-
-&lt;h3 id=&quot;trying-it-for-yourself&quot;&gt;Trying it for yourself&lt;/h3&gt;
-
-&lt;p&gt;First download &lt;a href=&quot;http://www.oracle.com/technetwork/oracle-labs/program-languages/downloads/index.html&quot;&gt;GraalVM&lt;/a&gt;: choose the Runtime Environment as it’s smaller.&lt;/p&gt;
-
-&lt;p&gt;You also need &lt;code class=&quot;highlighter-rouge&quot;&gt;mplayer&lt;/code&gt; installed with your favorite package manager.
-Then:&lt;/p&gt;
-
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;git clone https://github.com/eregon/optcarrot.git &lt;span class=&quot;nt&quot;&gt;--branch&lt;/span&gt; demo
-&lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;optcarrot
-path/to/graalvm-0.18-re/bin/ruby bin/optcarrot &lt;span class=&quot;nt&quot;&gt;--video&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;mplayer &lt;span class=&quot;nt&quot;&gt;--audio&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;none &lt;span class=&quot;nt&quot;&gt;--input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;term examples/Lan_Master.nes&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
-
-&lt;p&gt;Be patient, startup takes a while (loading files, loading the ROM, compiling the emulator and sending enough frames for mplayer to show up).&lt;/p&gt;
-
-&lt;p&gt;You need to click on the terminal before entering any input.
-Use &lt;code class=&quot;highlighter-rouge&quot;&gt;Z&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;X&lt;/code&gt; to rotate the links and the arrow keys to move around.&lt;/p&gt;
-
-&lt;h3 id=&quot;the-end&quot;&gt;The End&lt;/h3&gt;
-
-&lt;p&gt;I hope you liked the post.
-I would like to thank &lt;a href=&quot;https://github.com/mame&quot;&gt;@mame&lt;/a&gt; for this awesome benchmark.&lt;/p&gt;</content><author><name>Benoit Daloze</name></author><summary type="html">TruffleRuby runs Optcarrot, a NES emulator written in Ruby, at 150 fps while playing a NES game.</summary></entry></feed>
+Here is my piece for a better programming experience with threads for Ruby 2.5.&lt;/p&gt;</content><author><name>Benoit Daloze</name></author><summary type="html">Ruby 2.4 introduced Thread.report_on_exception to print exceptions to $stderr when a Thread dies from an exception. However, it was disabled by default. In Ruby 2.5, I made Thread.report_on_exception enabled by default. This significantly improves debugging multithreaded programs in Ruby.</summary></entry></feed>
