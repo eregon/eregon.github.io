@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.2">Jekyll</generator><link href="http://eregon.me/blog/feed.xml" rel="self" type="application/atom+xml" /><link href="http://eregon.me/blog/" rel="alternate" type="text/html" /><updated>2021-06-04T21:30:00+02:00</updated><id>http://eregon.me/blog/</id><title type="html">On the Edge of Ruby</title><subtitle>A blog about Ruby, Performance and Concurrency</subtitle><author><name>Benoit Daloze</name></author><entry><title type="html">Review: Ruby Installers and Ruby Switchers</title><link href="http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html" rel="alternate" type="text/html" title="Review: Ruby Installers and Ruby Switchers" /><published>2021-06-04T00:00:00+02:00</published><updated>2021-06-04T00:00:00+02:00</updated><id>http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers</id><content type="html" xml:base="http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html">&lt;p&gt;In this post I review the most popular Ruby installers (making it easier to install a Ruby)
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.6.2">Jekyll</generator><link href="http://eregon.me/blog/feed.xml" rel="self" type="application/atom+xml" /><link href="http://eregon.me/blog/" rel="alternate" type="text/html" /><updated>2021-06-04T21:47:29+02:00</updated><id>http://eregon.me/blog/</id><title type="html">On the Edge of Ruby</title><subtitle>A blog about Ruby, Performance and Concurrency</subtitle><author><name>Benoit Daloze</name></author><entry><title type="html">Review: Ruby Installers and Ruby Switchers</title><link href="http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html" rel="alternate" type="text/html" title="Review: Ruby Installers and Ruby Switchers" /><published>2021-06-04T00:00:00+02:00</published><updated>2021-06-04T00:00:00+02:00</updated><id>http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers</id><content type="html" xml:base="http://eregon.me/blog/2021/06/04/review-of-ruby-installers-and-switchers.html">&lt;p&gt;In this post I review the most popular Ruby installers (making it easier to install a Ruby)
 and Ruby switchers (to switch between different Rubies conveniently).&lt;/p&gt;
 
 &lt;p&gt;I contributed to all 3 Ruby installers when adding support for &lt;a href=&quot;https://www.graalvm.org/ruby/&quot;&gt;TruffleRuby&lt;/a&gt;,
@@ -147,6 +147,7 @@ but I think that’s a reasonable assumption for a Ruby switcher.&lt;/p&gt;
   &lt;li&gt;Also works for non-Bash shells like &lt;a href=&quot;https://fishshell.com/&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;fish&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;Reliable, does not mess with &lt;code class=&quot;highlighter-rouge&quot;&gt;GEM_HOME&lt;/code&gt;&lt;/li&gt;
   &lt;li&gt;Well maintained, least number of open issues&lt;/li&gt;
+  &lt;li&gt;Small, 1500 SLOC of Bash&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;Cons:&lt;/p&gt;
@@ -176,7 +177,7 @@ After lots of efforts, and even getting consensus on the related &lt;a href=&quo
 
 &lt;p&gt;Pros:&lt;/p&gt;
 &lt;ul&gt;
-  &lt;li&gt;Very simple and minimal&lt;/li&gt;
+  &lt;li&gt;Very simple and minimal, 149 SLOC of Bash&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;p&gt;Cons:&lt;/p&gt;
