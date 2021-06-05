@@ -232,7 +232,7 @@ Also gemsets have symlimks in their path (not expanded, that’s how RVM knows w
 <h3 id="rbenv">rbenv</h3>
 
 <p><a href="https://github.com/rbenv/rbenv">rbenv</a> is a simple Ruby switcher.
-It uses small shims (executables) to always redirect to the currently-selected Ruby.
+It uses small <a href="https://medium.com/@Sudhagar/rbenv-how-it-works-e5a0e4fa6e76">shims</a> (executables) to always redirect to the currently-selected Ruby.
 There is an overhead of that, in the order of 11 ms on my machine (pretty small, considering that <code class="highlighter-rouge">ruby -e 0</code> takes 38 ms on my machine for ruby-3.0.1).
 OTOH, it guarantees it will never pick the wrong Ruby which is obviously important.</p>
 
